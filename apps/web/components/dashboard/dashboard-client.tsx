@@ -2,15 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import {
-    type FormEvent,
-    type KeyboardEvent,
-    type ReactNode,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { HealthBadge } from "~/components/landing/health-badge";
 
@@ -30,32 +22,14 @@ type Message = {
     content: string;
     timestamp: string;
     fields?: FieldPlan[];
-    mode?: "live" | "error";
-};
-
-type Job = {
-    id: string;
-    name: string;
-    target: string;
-    fieldCount: number;
+    status?: "success" | "error";
 };
 
 type PlanResponse = {
-    success?: boolean;
     data?: {
         fields?: FieldPlan[];
     };
 };
-
-const initialMessages: Message[] = [
-    {
-        id: "system-ready",
-        role: "agent",
-        timestamp: "READY",
-        content:
-            "ScrapeVerse node online. Tell me what website to inspect and what data you need. I’ll turn the request into a reviewable extraction plan.",
-    },
-];
 
 function timestamp() {
     return new Intl.DateTimeFormat("en", {
@@ -66,17 +40,16 @@ function timestamp() {
 }
 
 export function DashboardClient() {
-    const [messages, setMessages] = useState<Message[]>(initialMessages);
-    const [jobs, setJobs] = useState<Job[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [instruction, setInstruction] = useState("");
     const [isPlanning, setIsPlanning] = useState(false);
-    const [leftOpen, setLeftOpen] = useState(false);
-    const [rightOpen, setRightOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [conversationTitle, setConversationTitle] = useState("New scrape");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const latestPlan = useMemo(
-        () => [...messages].reverse().find((message) => message.fields?.length),
+    const hasConversation = messages.length > 1;
+    const latestFields = useMemo(
+        () => [...messages].reverse().find((message) => message.fields?.length)?.fields ?? [],
         [messages],
     );
 
@@ -84,25 +57,30 @@ export function DashboardClient() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }, [messages, isPlanning]);
 
+    function startNewChat() {
+        setMessages([]);
+        setInstruction("");
+        setConversationTitle("New scrape");
+        setSidebarOpen(false);
+    }
+
     async function submitInstruction(event?: FormEvent) {
         event?.preventDefault();
         const request = instruction.trim();
         if (!request || isPlanning) return;
 
-        const requestTime = timestamp();
-        const userMessage: Message = {
-            id: crypto.randomUUID(),
-            role: "user",
-            timestamp: requestTime,
-            content: request,
-        };
-
-        setMessages((current) => [...current, userMessage]);
+        setMessages((current) => [
+            ...current,
+            {
+                id: crypto.randomUUID(),
+                role: "user",
+                timestamp: timestamp(),
+                content: request,
+            },
+        ]);
+        setConversationTitle(request.slice(0, 38));
         setInstruction("");
         setIsPlanning(true);
-        setConversationTitle(request.slice(0, 42));
-
-        let fields: FieldPlan[];
 
         try {
             const response = await fetch(`${API_URL}/scraper/plan`, {
@@ -111,10 +89,22 @@ export function DashboardClient() {
                 body: JSON.stringify({ instruction: request }),
             });
 
-            if (!response.ok) throw new Error("Planning endpoint unavailable");
+            if (!response.ok) throw new Error("Planning request failed");
             const payload = (await response.json()) as PlanResponse;
-            fields = payload.data?.fields?.filter((field) => field.name) ?? [];
-            if (!fields.length) throw new Error("Planning endpoint returned no fields");
+            const fields = payload.data?.fields?.filter((field) => field.name) ?? [];
+            if (!fields.length) throw new Error("Planning API returned no fields");
+
+            setMessages((current) => [
+                ...current,
+                {
+                    id: crypto.randomUUID(),
+                    role: "agent",
+                    timestamp: timestamp(),
+                    status: "success",
+                    content: `The live planner returned ${fields.length} extraction fields.`,
+                    fields,
+                },
+            ]);
         } catch {
             setMessages((current) => [
                 ...current,
@@ -122,36 +112,14 @@ export function DashboardClient() {
                     id: crypto.randomUUID(),
                     role: "agent",
                     timestamp: timestamp(),
-                    mode: "error",
+                    status: "error",
                     content:
-                        "I couldn’t reach the scrape planning API. No schema was generated. Check the backend connection and try again.",
+                        "I couldn’t reach the scraping API. No fields or results were generated. Check the backend and try again.",
                 },
             ]);
+        } finally {
             setIsPlanning(false);
-            return;
         }
-
-        const target = request.match(/https?:\/\/([^/\s]+)/i)?.[1] ?? "Target pending";
-        const agentMessage: Message = {
-            id: crypto.randomUUID(),
-            role: "agent",
-            timestamp: timestamp(),
-            mode: "live",
-            content: `Plan received from the scrape engine. I mapped ${fields.length} fields for review.`,
-            fields,
-        };
-
-        setMessages((current) => [...current, agentMessage]);
-        setJobs((current) => [
-            {
-                id: `PLAN-${Date.now().toString(36).toUpperCase()}`,
-                name: request.slice(0, 28).toUpperCase(),
-                target,
-                fieldCount: fields.length,
-            },
-            ...current,
-        ]);
-        setIsPlanning(false);
     }
 
     function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -161,54 +129,35 @@ export function DashboardClient() {
         }
     }
 
-    function startNewConversation() {
-        setMessages(initialMessages);
-        setJobs([]);
-        setInstruction("");
-        setConversationTitle("New scrape");
-        setLeftOpen(false);
-    }
-
     return (
-        <main className="relative h-dvh min-h-[680px] overflow-hidden bg-void text-off-white selection:bg-flare">
-            <div className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] [background-size:36px_36px]" />
-            <div className="pointer-events-none absolute -top-48 left-[35%] h-96 w-96 rounded-full bg-flare/15 blur-[140px]" />
-
-            <div className="relative z-10 grid h-full lg:grid-cols-[280px_minmax(0,1fr)_340px]">
-                <DashboardSidebar
-                    jobs={jobs}
-                    conversationTitle={conversationTitle}
-                    open={leftOpen}
-                    onClose={() => setLeftOpen(false)}
-                    onNewConversation={startNewConversation}
+        <main className="h-dvh min-h-[620px] overflow-hidden bg-[#050505] text-off-white selection:bg-flare">
+            <div className="flex h-full">
+                <Sidebar
+                    open={sidebarOpen}
+                    title={conversationTitle}
+                    hasConversation={hasConversation}
+                    fieldCount={latestFields.length}
+                    onClose={() => setSidebarOpen(false)}
+                    onNewChat={startNewChat}
                 />
 
-                <section className="flex min-w-0 flex-col border-x border-off-white/10">
-                    <DashboardHeader
-                        onOpenLeft={() => setLeftOpen(true)}
-                        onOpenRight={() => setRightOpen(true)}
-                    />
+                <section className="relative flex min-w-0 flex-1 flex-col">
+                    <Header title={conversationTitle} onOpenSidebar={() => setSidebarOpen(true)} />
 
                     <div className="relative min-h-0 flex-1">
-                        <div className="absolute inset-0 overflow-y-auto px-4 pb-48 pt-5 sm:px-8 lg:px-10">
-                            <div className="mx-auto flex w-full max-w-4xl flex-col gap-7">
-                                <div className="border-l-2 border-flare pl-4">
-                                    <p className="font-mono text-[10px] tracking-[0.22em] text-flare uppercase">
-                                        {"// ACTIVE CONVERSATION"}
-                                    </p>
-                                    <h1 className="mt-1 font-heavy text-2xl tracking-[-0.04em] uppercase sm:text-3xl">
-                                        {conversationTitle}
-                                    </h1>
+                        <div className="absolute inset-0 overflow-y-auto px-4 pb-40 pt-8 sm:px-8">
+                            <div className="mx-auto w-full max-w-3xl">
+                                {!hasConversation ? <EmptyState /> : null}
+
+                                <div className="space-y-8">
+                                    <AnimatePresence initial={false}>
+                                        {messages.map((message) => (
+                                            <ChatMessage key={message.id} message={message} />
+                                        ))}
+                                    </AnimatePresence>
+                                    {isPlanning ? <ThinkingIndicator /> : null}
+                                    <div ref={messagesEndRef} aria-hidden="true" />
                                 </div>
-
-                                <AnimatePresence initial={false}>
-                                    {messages.map((message) => (
-                                        <ChatMessage key={message.id} message={message} />
-                                    ))}
-                                </AnimatePresence>
-
-                                {isPlanning ? <PlanningIndicator /> : null}
-                                <div ref={messagesEndRef} aria-hidden="true" />
                             </div>
                         </div>
 
@@ -221,182 +170,103 @@ export function DashboardClient() {
                         />
                     </div>
                 </section>
-
-                <MissionControl
-                    open={rightOpen}
-                    onClose={() => setRightOpen(false)}
-                    plan={latestPlan}
-                    job={jobs[0]}
-                />
             </div>
         </main>
     );
 }
 
-function DashboardHeader({
-    onOpenLeft,
-    onOpenRight,
-}: {
-    onOpenLeft: () => void;
-    onOpenRight: () => void;
-}) {
-    return (
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-off-white/10 bg-void/85 px-4 backdrop-blur-xl sm:px-6">
-            <div className="flex items-center gap-3">
-                <button
-                    type="button"
-                    aria-label="Open conversations"
-                    onClick={onOpenLeft}
-                    className="grid size-9 place-items-center border border-off-white/15 lg:hidden"
-                >
-                    <MenuIcon />
-                </button>
-                <div className="hidden items-center gap-2 sm:flex">
-                    <span className="size-2 animate-pulse rounded-full bg-flare" />
-                    <span className="font-mono text-[10px] tracking-[0.2em] text-off-white/55 uppercase">
-                        NODE / EARTH-616
-                    </span>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-                <HealthBadge />
-                <span className="hidden h-4 w-px bg-off-white/15 sm:block" />
-                <span className="hidden font-mono text-[10px] tracking-widest text-off-white/35 uppercase sm:inline">
-                    Encrypted session
-                </span>
-                <button
-                    type="button"
-                    aria-label="Open mission control"
-                    onClick={onOpenRight}
-                    className="grid size-9 place-items-center border border-off-white/15 xl:hidden"
-                >
-                    <PanelIcon />
-                </button>
-            </div>
-        </header>
-    );
-}
-
-function DashboardSidebar({
-    jobs,
-    conversationTitle,
+function Sidebar({
     open,
+    title,
+    hasConversation,
+    fieldCount,
     onClose,
-    onNewConversation,
+    onNewChat,
 }: {
-    jobs: Job[];
-    conversationTitle: string;
     open: boolean;
+    title: string;
+    hasConversation: boolean;
+    fieldCount: number;
     onClose: () => void;
-    onNewConversation: () => void;
+    onNewChat: () => void;
 }) {
     return (
         <>
             {open ? (
                 <button
                     type="button"
-                    aria-label="Close conversations"
+                    aria-label="Close sidebar"
                     onClick={onClose}
-                    className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
+                    className="fixed inset-0 z-40 bg-black/70 md:hidden"
                 />
             ) : null}
+
             <aside
-                className={`fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-[#080808] transition-transform duration-500 lg:static lg:z-auto lg:translate-x-0 ${
+                className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-white/[0.07] bg-[#0b0b0b] transition-transform duration-300 md:static md:translate-x-0 ${
                     open ? "translate-x-0" : "-translate-x-full"
                 }`}
             >
-                <div className="flex h-16 items-center justify-between border-b border-off-white/10 px-5">
+                <div className="flex h-14 items-center justify-between px-4">
                     <Link href="/" className="flex items-center gap-2">
-                        <span className="size-2.5 bg-flare" />
-                        <span className="font-heavy text-lg tracking-[-0.04em] uppercase">
-                            ScrapVerse<span className="text-flare">®</span>
+                        <span className="size-2 bg-flare" />
+                        <span className="font-heavy text-sm tracking-[-0.03em] uppercase">
+                            ScrapVerse <span className="text-flare">Go</span>
                         </span>
                     </Link>
                     <button
                         type="button"
-                        aria-label="Close conversations"
+                        aria-label="Close sidebar"
                         onClick={onClose}
-                        className="font-mono text-xs text-off-white/40 lg:hidden"
+                        className="font-mono text-[10px] text-white/35 md:hidden"
                     >
                         ESC
                     </button>
                 </div>
 
-                <div className="border-b border-off-white/10 p-4">
+                <div className="px-3 py-2">
                     <button
                         type="button"
-                        onClick={onNewConversation}
-                        className="group flex w-full items-center justify-between bg-flare px-4 py-3 font-mono text-xs font-bold tracking-widest uppercase transition-colors hover:bg-red-500"
+                        onClick={onNewChat}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/[0.06]"
                     >
+                        <NewChatIcon />
                         New scrape
-                        <span className="text-lg transition-transform group-hover:rotate-90">
-                            +
-                        </span>
                     </button>
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
-                    <SidebarLabel>Conversations</SidebarLabel>
-                    <div className="mt-3 space-y-1">
-                        <div className="flex w-full items-start justify-between border-l-2 border-flare bg-off-white/7 px-3 py-3 text-left">
-                            <span className="max-w-[180px] truncate text-sm">
-                                {conversationTitle}
-                            </span>
-                            <span className="pt-0.5 font-mono text-[9px] text-off-white/30">
-                                NOW
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="mt-8">
-                        <SidebarLabel>Scrape jobs</SidebarLabel>
-                        <div className="mt-3 space-y-2">
-                            {jobs.length ? (
-                                jobs.slice(0, 4).map((job) => (
-                                    <button
-                                        type="button"
-                                        key={job.id}
-                                        className="w-full border border-off-white/10 bg-off-white/[0.025] p-3 text-left transition-colors hover:border-off-white/25"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-mono text-[9px] text-off-white/35">
-                                                {job.id}
-                                            </span>
-                                            <span className="size-1.5 rounded-full bg-flare" />
-                                        </div>
-                                        <p className="mt-2 truncate font-mono text-[11px] font-bold tracking-wide">
-                                            {job.name}
-                                        </p>
-                                        <div className="mt-2 flex justify-between font-mono text-[9px] text-off-white/35">
-                                            <span>{job.target}</span>
-                                            <span>{job.fieldCount} fields</span>
-                                        </div>
-                                    </button>
-                                ))
-                            ) : (
-                                <p className="border border-dashed border-off-white/10 px-3 py-4 font-mono text-[9px] leading-relaxed text-off-white/25 uppercase">
-                                    No plans yet. Send a real scraping request to create one.
-                                </p>
-                            )}
+                    <p className="px-3 font-mono text-[9px] tracking-[0.16em] text-white/30 uppercase">
+                        Chats
+                    </p>
+                    <div className="mt-2">
+                        <div className="rounded-lg bg-white/[0.055] px-3 py-3">
+                            <div className="flex items-start justify-between gap-2">
+                                <p className="min-w-0 flex-1 truncate text-sm">{title}</p>
+                                <span className="mt-1 size-1.5 shrink-0 rounded-full bg-flare" />
+                            </div>
+                            <p className="mt-2 font-mono text-[9px] text-white/30">
+                                {hasConversation
+                                    ? fieldCount
+                                        ? `${fieldCount} LIVE FIELDS`
+                                        : "CURRENT SESSION"
+                                    : "EMPTY SESSION"}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="border-t border-off-white/10 p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="grid size-9 place-items-center bg-off-white text-xs font-black text-void">
+                <div className="border-t border-white/[0.07] p-3">
+                    <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+                        <div className="grid size-8 place-items-center rounded-full bg-flare text-[10px] font-black">
                             OP
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-bold uppercase">Operator</p>
-                            <p className="font-mono text-[9px] text-off-white/35">
-                                MULTIVERSE ACCESS
-                            </p>
+                            <p className="truncate text-xs font-semibold">Operator</p>
+                            <p className="font-mono text-[8px] text-white/30">SCRAPVERSE ACCESS</p>
                         </div>
                         <Link
                             href="/login"
-                            className="font-mono text-[9px] text-off-white/35 transition-colors hover:text-flare"
+                            className="font-mono text-[9px] text-white/30 hover:text-flare"
                         >
                             EXIT
                         </Link>
@@ -407,121 +277,151 @@ function DashboardSidebar({
     );
 }
 
-function ChatMessage({ message }: { message: Message }) {
-    const isAgent = message.role === "agent";
-
+function Header({ title, onOpenSidebar }: { title: string; onOpenSidebar: () => void }) {
     return (
-        <motion.article
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.55, ease }}
-            className={`flex gap-3 sm:gap-4 ${isAgent ? "" : "flex-row-reverse"}`}
-        >
-            <div
-                className={`grid size-9 shrink-0 place-items-center font-mono text-[10px] font-black ${
-                    isAgent
-                        ? "border border-flare bg-flare/10 text-flare"
-                        : "bg-off-white text-void"
-                }`}
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] px-4 sm:px-6">
+            <button
+                type="button"
+                aria-label="Open sidebar"
+                onClick={onOpenSidebar}
+                className="grid size-8 place-items-center rounded-md hover:bg-white/[0.06] md:hidden"
             >
-                {isAgent ? "SV" : "YOU"}
-            </div>
-            <div className={`max-w-[88%] sm:max-w-[82%] ${isAgent ? "" : "text-right"}`}>
-                <div className="mb-2 flex items-center gap-2 font-mono text-[9px] tracking-widest text-off-white/30 uppercase">
-                    {isAgent ? (
-                        <>
-                            <span>Scrape agent</span>
-                            {message.mode ? (
-                                <span
-                                    className={
-                                        message.mode === "live" ? "text-emerald-400" : "text-flare"
-                                    }
-                                >
-                                    / {message.mode === "live" ? "API PLAN" : "API ERROR"}
-                                </span>
-                            ) : null}
-                        </>
-                    ) : (
-                        <span className="ml-auto">Operator</span>
-                    )}
-                    <span>{message.timestamp}</span>
-                </div>
-                <div
-                    className={`border px-4 py-3.5 text-sm leading-relaxed sm:px-5 sm:py-4 ${
-                        isAgent
-                            ? "border-off-white/10 bg-off-white/[0.035] text-off-white/80"
-                            : "border-flare/40 bg-flare text-white"
-                    }`}
-                >
-                    {message.content}
-                </div>
+                <MenuIcon />
+            </button>
 
-                {message.fields?.length ? <FieldPlanGrid fields={message.fields} /> : null}
+            <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-white/55">{title}</p>
             </div>
-        </motion.article>
+
+            <HealthBadge />
+        </header>
     );
 }
 
-function FieldPlanGrid({ fields }: { fields: FieldPlan[] }) {
+function EmptyState() {
     return (
-        <div className="mt-3 overflow-hidden border border-off-white/10 bg-[#070707] text-left">
-            <div className="flex items-center justify-between border-b border-off-white/10 px-4 py-2.5">
-                <span className="font-mono text-[9px] tracking-[0.18em] text-off-white/45 uppercase">
-                    Extraction schema / {fields.length} fields
-                </span>
-                <span className="size-1.5 animate-pulse rounded-full bg-flare" />
+        <div className="pb-10 pt-[8vh] text-center">
+            <div className="mx-auto grid size-12 place-items-center rounded-xl border border-flare/35 bg-flare/10 font-heavy text-sm text-flare">
+                SV
             </div>
-            <div className="divide-y divide-off-white/8">
-                {fields.map((field, index) => (
-                    <div
-                        key={`${field.name}-${index}`}
-                        className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3 sm:grid-cols-[1.1fr_0.55fr_1.5fr]"
-                    >
-                        <div>
-                            <p className="font-mono text-[11px] font-bold text-off-white">
-                                {field.name}
-                            </p>
-                            <p className="mt-1 text-[10px] text-off-white/35 sm:hidden">
-                                {field.description}
-                            </p>
-                        </div>
-                        <span className="h-fit border border-flare/30 px-2 py-0.5 font-mono text-[9px] text-flare uppercase">
-                            {field.type}
-                        </span>
-                        <p className="hidden text-xs text-off-white/45 sm:block">
-                            {field.description}
-                        </p>
-                    </div>
-                ))}
-            </div>
-            <p className="border-t border-off-white/10 px-4 py-3 font-mono text-[9px] text-off-white/30 uppercase">
-                Schema returned by the live planning API
+            <h1 className="mt-5 font-heavy text-3xl tracking-[-0.04em] sm:text-4xl">
+                What should we scrape?
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/40">
+                Describe a target and the fields you need. The response will come directly from the
+                live scraping planner.
             </p>
         </div>
     );
 }
 
-function PlanningIndicator() {
+function ChatMessage({ message }: { message: Message }) {
+    const isUser = message.role === "user";
+
+    return (
+        <motion.article
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease }}
+            className={isUser ? "flex justify-end" : ""}
+        >
+            {isUser ? (
+                <div className="max-w-[85%] sm:max-w-[72%]">
+                    <div className="rounded-2xl rounded-br-md bg-flare px-4 py-3 text-sm leading-relaxed text-white">
+                        {message.content}
+                    </div>
+                    <p className="mt-1.5 text-right font-mono text-[8px] text-white/20">
+                        {message.timestamp}
+                    </p>
+                </div>
+            ) : (
+                <div className="flex max-w-full gap-3">
+                    <div
+                        className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border text-[8px] font-black ${
+                            message.status === "error"
+                                ? "border-flare/50 bg-flare/10 text-flare"
+                                : "border-white/15 bg-white/[0.04] text-white/65"
+                        }`}
+                    >
+                        SV
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold">ScrapeVerse</span>
+                            {message.status ? (
+                                <span
+                                    className={`font-mono text-[8px] uppercase ${
+                                        message.status === "success"
+                                            ? "text-emerald-400"
+                                            : "text-flare"
+                                    }`}
+                                >
+                                    {message.status === "success" ? "Live API" : "API error"}
+                                </span>
+                            ) : null}
+                            <span className="font-mono text-[8px] text-white/20">
+                                {message.timestamp}
+                            </span>
+                        </div>
+                        <p className="mt-2 text-sm leading-7 text-white/75">{message.content}</p>
+                        {message.fields?.length ? <SchemaCard fields={message.fields} /> : null}
+                    </div>
+                </div>
+            )}
+        </motion.article>
+    );
+}
+
+function SchemaCard({ fields }: { fields: FieldPlan[] }) {
+    return (
+        <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.025]">
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
+                <span className="font-mono text-[9px] tracking-[0.14em] text-white/40 uppercase">
+                    Live extraction plan
+                </span>
+                <span className="font-mono text-[9px] text-flare">{fields.length} FIELDS</span>
+            </div>
+            <div className="divide-y divide-white/[0.07]">
+                {fields.map((field) => (
+                    <div
+                        key={field.name}
+                        className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto_1.4fr] sm:items-center sm:gap-4"
+                    >
+                        <span className="font-mono text-[10px] font-semibold text-white/80">
+                            {field.name}
+                        </span>
+                        <span className="w-fit rounded-full border border-flare/25 bg-flare/5 px-2 py-0.5 font-mono text-[8px] text-flare uppercase">
+                            {field.type}
+                        </span>
+                        <span className="text-[11px] text-white/35">{field.description}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ThinkingIndicator() {
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center gap-4 pl-12 text-off-white/45"
+            className="flex items-center gap-3"
         >
+            <div className="grid size-7 place-items-center rounded-full border border-white/15 text-[8px] font-black text-white/60">
+                SV
+            </div>
             <div className="flex gap-1">
                 {[0, 1, 2].map((index) => (
                     <motion.span
                         key={index}
-                        className="size-1.5 bg-flare"
-                        animate={{ opacity: [0.25, 1, 0.25] }}
-                        transition={{ duration: 0.9, repeat: Infinity, delay: index * 0.14 }}
+                        className="size-1 rounded-full bg-flare"
+                        animate={{ opacity: [0.2, 1, 0.2] }}
+                        transition={{ duration: 0.85, repeat: Infinity, delay: index * 0.12 }}
                     />
                 ))}
             </div>
-            <span className="font-mono text-[10px] tracking-widest uppercase">
-                Mapping target structure
-            </span>
+            <span className="font-mono text-[9px] text-white/30 uppercase">Contacting planner</span>
         </motion.div>
     );
 }
@@ -540,197 +440,60 @@ function Composer({
     onSubmit: (event: FormEvent) => void;
 }) {
     return (
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-void via-void to-transparent px-4 pb-4 pt-14 sm:px-8 sm:pb-6 lg:px-10">
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-[#050505] via-[#050505] to-transparent px-4 pb-5 pt-12 sm:px-8">
             <form
                 onSubmit={onSubmit}
-                className="mx-auto max-w-4xl border border-off-white/15 bg-[#0e0e0e] shadow-2xl focus-within:border-flare/55"
+                className="mx-auto max-w-3xl rounded-2xl border border-white/[0.12] bg-[#171717] p-2 shadow-2xl transition-colors focus-within:border-flare/45"
             >
                 <textarea
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
                     onKeyDown={onKeyDown}
-                    rows={2}
-                    placeholder="Tell ScrapVerse what to extract..."
-                    className="min-h-20 w-full resize-none bg-transparent px-4 pt-4 text-sm text-off-white outline-none placeholder:text-off-white/25 sm:px-5"
+                    rows={1}
+                    placeholder="Ask ScrapVerse to scrape anything"
+                    className="max-h-36 min-h-11 w-full resize-none bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-white/30"
                 />
-                <div className="flex items-center justify-between px-3 pb-3 sm:px-4">
-                    <div className="flex items-center gap-3 font-mono text-[9px] text-off-white/25 uppercase">
-                        <span className="hidden sm:inline">Enter to plan</span>
-                        <span className="hidden sm:inline">/</span>
-                        <span>Shift + Enter for line</span>
-                    </div>
+                <div className="flex items-center justify-between px-2 pb-1">
+                    <span className="font-mono text-[8px] text-white/20 uppercase">
+                        Shift + Enter for new line
+                    </span>
                     <button
                         type="submit"
+                        aria-label="Send scraping request"
                         disabled={!value.trim() || pending}
-                        className="flex items-center gap-2 bg-flare px-4 py-2.5 font-mono text-[10px] font-black tracking-widest uppercase transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-off-white/10 disabled:text-off-white/25"
+                        className="grid size-9 place-items-center rounded-full bg-flare text-white transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/20"
                     >
-                        {pending ? "Planning" : "Plan scrape"}
-                        <ArrowIcon />
+                        <SendIcon />
                     </button>
                 </div>
             </form>
-            <p className="mx-auto mt-2 max-w-4xl text-center font-mono text-[8px] tracking-wider text-off-white/20 uppercase">
-                Review planned fields before generating selectors
+            <p className="mx-auto mt-2 max-w-3xl text-center font-mono text-[8px] text-white/15">
+                Only live API responses are shown
             </p>
         </div>
     );
 }
 
-function MissionControl({
-    open,
-    onClose,
-    plan,
-    job,
-}: {
-    open: boolean;
-    onClose: () => void;
-    plan?: Message;
-    job?: Job;
-}) {
-    const schema = plan?.fields ?? [];
-
+function NewChatIcon() {
     return (
-        <>
-            {open ? (
-                <button
-                    type="button"
-                    aria-label="Close mission control"
-                    onClick={onClose}
-                    className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm xl:hidden"
-                />
-            ) : null}
-            <aside
-                className={`fixed inset-y-0 right-0 z-50 flex w-[340px] max-w-[92vw] flex-col bg-[#080808] transition-transform duration-500 xl:static xl:z-auto xl:translate-x-0 ${
-                    open ? "translate-x-0" : "translate-x-full"
-                }`}
-            >
-                <div className="flex h-16 shrink-0 items-center justify-between border-b border-off-white/10 px-5">
-                    <div>
-                        <p className="font-mono text-[9px] tracking-[0.2em] text-flare uppercase">
-                            {"// LIVE OUTPUT"}
-                        </p>
-                        <h2 className="font-heavy text-base uppercase">Mission control</h2>
-                    </div>
-                    <button
-                        type="button"
-                        aria-label="Close mission control"
-                        onClick={onClose}
-                        className="font-mono text-xs text-off-white/40 xl:hidden"
-                    >
-                        ESC
-                    </button>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                    {job && schema.length ? (
-                        <>
-                            <section className="border-b border-off-white/10 p-5">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <p className="font-mono text-[9px] text-off-white/35 uppercase">
-                                            {job.id}
-                                        </p>
-                                        <h3 className="mt-1 truncate text-sm font-bold uppercase">
-                                            {job.name}
-                                        </h3>
-                                        <p className="mt-2 truncate font-mono text-[9px] text-off-white/35">
-                                            {job.target}
-                                        </p>
-                                    </div>
-                                    <span className="shrink-0 border border-emerald-400/35 bg-emerald-400/10 px-2 py-1 font-mono text-[8px] text-emerald-400 uppercase">
-                                        API plan
-                                    </span>
-                                </div>
-                                <div className="mt-5 border border-off-white/10 bg-off-white/[0.025] p-4">
-                                    <p className="font-heavy text-3xl text-flare">
-                                        {schema.length}
-                                    </p>
-                                    <p className="mt-1 font-mono text-[9px] tracking-widest text-off-white/30 uppercase">
-                                        Fields returned by backend
-                                    </p>
-                                </div>
-                            </section>
-
-                            <section className="p-5">
-                                <SidebarLabel>Live schema</SidebarLabel>
-                                <div className="mt-4 space-y-2">
-                                    {schema.map((field) => (
-                                        <div
-                                            key={field.name}
-                                            className="border border-off-white/10 bg-off-white/[0.025] p-3"
-                                        >
-                                            <div className="flex items-center justify-between gap-3">
-                                                <span className="truncate font-mono text-[10px] font-bold">
-                                                    {field.name}
-                                                </span>
-                                                <span className="font-mono text-[8px] text-flare uppercase">
-                                                    {field.type}
-                                                </span>
-                                            </div>
-                                            <p className="mt-2 text-[10px] leading-relaxed text-off-white/35">
-                                                {field.description}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        </>
-                    ) : (
-                        <div className="grid min-h-full place-items-center p-8 text-center">
-                            <div>
-                                <div className="mx-auto grid size-12 place-items-center border border-dashed border-off-white/20 font-mono text-flare">
-                                    00
-                                </div>
-                                <h3 className="mt-5 font-heavy text-lg uppercase">No live plan</h3>
-                                <p className="mt-2 max-w-56 text-xs leading-relaxed text-off-white/35">
-                                    Send a scraping instruction. This panel only displays data
-                                    returned by the backend.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="shrink-0 border-t border-off-white/10 p-4">
-                    <p className="text-center font-mono text-[9px] leading-relaxed text-off-white/25 uppercase">
-                        Run controls unlock when the backend exposes execution and results APIs.
-                    </p>
-                </div>
-            </aside>
-        </>
-    );
-}
-
-function SidebarLabel({ children }: { children: ReactNode }) {
-    return (
-        <p className="font-mono text-[9px] tracking-[0.22em] text-off-white/30 uppercase">
-            {"// "}
-            {children}
-        </p>
+        <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor">
+            <path d="M10 4v12M4 10h12" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
     );
 }
 
 function MenuIcon() {
     return (
-        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor">
-            <path d="M4 7h16M4 12h16M4 17h10" strokeWidth="1.5" />
+        <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor">
+            <path d="M3 5h14M3 10h14M3 15h9" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
     );
 }
 
-function PanelIcon() {
+function SendIcon() {
     return (
-        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor">
-            <rect x="4" y="4" width="16" height="16" strokeWidth="1.5" />
-            <path d="M14 4v16" strokeWidth="1.5" />
-        </svg>
-    );
-}
-
-function ArrowIcon() {
-    return (
-        <svg viewBox="0 0 20 20" className="size-3.5" fill="none" stroke="currentColor">
-            <path d="M4 10h12M11 5l5 5-5 5" strokeWidth="1.7" />
+        <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor">
+            <path d="m5 10 5-5 5 5M10 5v10" strokeWidth="1.7" strokeLinecap="round" />
         </svg>
     );
 }
