@@ -1,10 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
-
-import { HealthBadge } from "~/components/landing/health-badge";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const ease = [0.19, 1, 0.22, 1] as const;
@@ -44,10 +43,11 @@ export function DashboardClient() {
     const [instruction, setInstruction] = useState("");
     const [isPlanning, setIsPlanning] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [actionsOpen, setActionsOpen] = useState(false);
     const [conversationTitle, setConversationTitle] = useState("New scrape");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const hasConversation = messages.length > 1;
+    const hasConversation = messages.length > 0;
     const latestFields = useMemo(
         () => [...messages].reverse().find((message) => message.fields?.length)?.fields ?? [],
         [messages],
@@ -130,8 +130,13 @@ export function DashboardClient() {
     }
 
     return (
-        <main className="h-dvh min-h-[620px] overflow-hidden bg-[#050505] text-off-white selection:bg-flare">
-            <div className="flex h-full">
+        <main className="h-dvh min-h-[640px] overflow-hidden bg-black text-white">
+            <TopBar
+                onOpenSidebar={() => setSidebarOpen(true)}
+                onOpenActions={() => setActionsOpen(true)}
+            />
+
+            <div className="grid h-[calc(100%-56px)] gap-2 p-2 md:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_280px]">
                 <Sidebar
                     open={sidebarOpen}
                     title={conversationTitle}
@@ -141,23 +146,43 @@ export function DashboardClient() {
                     onNewChat={startNewChat}
                 />
 
-                <section className="relative flex min-w-0 flex-1 flex-col">
-                    <Header title={conversationTitle} onOpenSidebar={() => setSidebarOpen(true)} />
+                <section className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0c0c]">
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-x-0 top-0 h-40 overflow-hidden"
+                    >
+                        <Image
+                            src="/images/spider-peek.png"
+                            alt=""
+                            fill
+                            sizes="100vw"
+                            className="object-cover object-[center_18%] opacity-90"
+                        />
+                        <div className="absolute inset-0 bg-linear-to-b from-black/20 via-[#0c0c0c]/55 to-[#0c0c0c]" />
+                    </div>
 
-                    <div className="relative min-h-0 flex-1">
-                        <div className="absolute inset-0 overflow-y-auto px-4 pb-40 pt-8 sm:px-8">
-                            <div className="mx-auto w-full max-w-3xl">
-                                {!hasConversation ? <EmptyState /> : null}
+                    <div className="relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-white/[0.06] px-4">
+                        <div className="flex items-center gap-2">
+                            <AgentMark />
+                            <span className="text-sm font-medium">{conversationTitle}</span>
+                        </div>
+                        <span className="font-mono text-[9px] tracking-widest text-white/30 uppercase">
+                            Auto-plan
+                        </span>
+                    </div>
 
-                                <div className="space-y-8">
-                                    <AnimatePresence initial={false}>
-                                        {messages.map((message) => (
-                                            <ChatMessage key={message.id} message={message} />
-                                        ))}
-                                    </AnimatePresence>
-                                    {isPlanning ? <ThinkingIndicator /> : null}
-                                    <div ref={messagesEndRef} aria-hidden="true" />
-                                </div>
+                    <div className="relative z-10 min-h-0 flex-1">
+                        <div className="absolute inset-0 overflow-y-auto px-4 pb-36 pt-5 sm:px-6">
+                            {!hasConversation ? <EmptyState /> : null}
+
+                            <div className="mx-auto flex max-w-2xl flex-col gap-4">
+                                <AnimatePresence initial={false}>
+                                    {messages.map((message) => (
+                                        <ChatMessage key={message.id} message={message} />
+                                    ))}
+                                </AnimatePresence>
+                                {isPlanning ? <ThinkingIndicator /> : null}
+                                <div ref={messagesEndRef} aria-hidden="true" />
                             </div>
                         </div>
 
@@ -170,8 +195,63 @@ export function DashboardClient() {
                         />
                     </div>
                 </section>
+
+                <ActionsPanel
+                    open={actionsOpen}
+                    fields={latestFields}
+                    onClose={() => setActionsOpen(false)}
+                />
             </div>
         </main>
+    );
+}
+
+function TopBar({
+    onOpenSidebar,
+    onOpenActions,
+}: {
+    onOpenSidebar: () => void;
+    onOpenActions: () => void;
+}) {
+    return (
+        <header className="flex h-14 items-center justify-between gap-4 px-3 sm:px-4">
+            <div className="flex min-w-0 items-center gap-3">
+                <button
+                    type="button"
+                    aria-label="Open chats"
+                    onClick={onOpenSidebar}
+                    className="grid size-8 place-items-center rounded-md text-white/70 hover:bg-white/[0.06] md:hidden"
+                >
+                    <MenuIcon />
+                </button>
+                <Link href="/" className="min-w-0">
+                    <p className="text-sm font-semibold tracking-tight">Agent</p>
+                    <p className="hidden truncate text-[11px] text-white/35 sm:block">
+                        scraper assistant — live planner
+                    </p>
+                </Link>
+            </div>
+
+            <label className="hidden min-w-0 max-w-md flex-1 items-center gap-2 rounded-full border border-white/[0.08] bg-[#121212] px-3 py-1.5 text-xs text-white/35 lg:flex">
+                <SearchIcon />
+                <span>Search commands...</span>
+                <span className="ml-auto rounded border border-white/10 px-1.5 py-0.5 font-mono text-[9px]">
+                    ⌘K
+                </span>
+            </label>
+
+            <div className="flex items-center gap-2">
+                <ApiStatus />
+                <button
+                    type="button"
+                    aria-label="Open actions"
+                    onClick={onOpenActions}
+                    className="grid size-8 place-items-center rounded-md text-white/70 hover:bg-white/[0.06] xl:hidden"
+                >
+                    <CheckIcon />
+                </button>
+            </div>
+        </header>
     );
 }
 
@@ -195,121 +275,141 @@ function Sidebar({
             {open ? (
                 <button
                     type="button"
-                    aria-label="Close sidebar"
+                    aria-label="Close chats"
                     onClick={onClose}
                     className="fixed inset-0 z-40 bg-black/70 md:hidden"
                 />
             ) : null}
 
             <aside
-                className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-white/[0.07] bg-[#0b0b0b] transition-transform duration-300 md:static md:translate-x-0 ${
-                    open ? "translate-x-0" : "-translate-x-full"
+                className={`fixed inset-y-2 left-2 z-50 flex w-[240px] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0c0c] transition-transform duration-300 md:static md:inset-auto md:translate-x-0 ${
+                    open ? "translate-x-0" : "-translate-x-[120%]"
                 }`}
             >
-                <div className="flex h-14 items-center justify-between px-4">
-                    <Link href="/" className="flex items-center gap-2">
-                        <span className="size-2 bg-flare" />
-                        <span className="font-heavy text-sm tracking-[-0.03em] uppercase">
-                            ScrapVerse <span className="text-flare">Go</span>
-                        </span>
-                    </Link>
-                    <button
-                        type="button"
-                        aria-label="Close sidebar"
-                        onClick={onClose}
-                        className="font-mono text-[10px] text-white/35 md:hidden"
-                    >
-                        ESC
-                    </button>
-                </div>
-
-                <div className="px-3 py-2">
+                <div className="flex h-12 items-center justify-between px-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <ChatIcon />
+                        Chats
+                    </div>
                     <button
                         type="button"
                         onClick={onNewChat}
-                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/[0.06]"
+                        className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-white/70 hover:border-flare/40 hover:text-white"
                     >
-                        <NewChatIcon />
-                        New scrape
+                        + New
                     </button>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
-                    <p className="px-3 font-mono text-[9px] tracking-[0.16em] text-white/30 uppercase">
-                        Chats
-                    </p>
-                    <div className="mt-2">
-                        <div className="rounded-lg bg-white/[0.055] px-3 py-3">
-                            <div className="flex items-start justify-between gap-2">
-                                <p className="min-w-0 flex-1 truncate text-sm">{title}</p>
-                                <span className="mt-1 size-1.5 shrink-0 rounded-full bg-flare" />
-                            </div>
-                            <p className="mt-2 font-mono text-[9px] text-white/30">
-                                {hasConversation
-                                    ? fieldCount
-                                        ? `${fieldCount} LIVE FIELDS`
-                                        : "CURRENT SESSION"
-                                    : "EMPTY SESSION"}
+                <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                    {hasConversation ? (
+                        <div className="rounded-lg bg-white/[0.06] px-3 py-3">
+                            <p className="truncate text-[13px] font-medium">{title}</p>
+                            <p className="mt-1 text-[11px] text-white/35">
+                                {messagesLabel(fieldCount)}
                             </p>
                         </div>
-                    </div>
+                    ) : (
+                        <p className="px-3 py-8 text-center text-[12px] leading-relaxed text-white/30">
+                            No chats yet. Start one from the composer.
+                        </p>
+                    )}
                 </div>
 
-                <div className="border-t border-white/[0.07] p-3">
-                    <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-                        <div className="grid size-8 place-items-center rounded-full bg-flare text-[10px] font-black">
-                            OP
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-semibold">Operator</p>
-                            <p className="font-mono text-[8px] text-white/30">SCRAPVERSE ACCESS</p>
-                        </div>
-                        <Link
-                            href="/login"
-                            className="font-mono text-[9px] text-white/30 hover:text-flare"
-                        >
-                            EXIT
-                        </Link>
+                <div className="flex items-center gap-3 border-t border-white/[0.07] px-3 py-3">
+                    <div className="grid size-8 place-items-center rounded-full bg-flare text-[10px] font-semibold">
+                        IS
                     </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs">Operator</p>
+                        <p className="text-[10px] text-white/30">signed in</p>
+                    </div>
+                    <Link href="/login" className="text-[10px] text-white/30 hover:text-flare">
+                        Exit
+                    </Link>
                 </div>
             </aside>
         </>
     );
 }
 
-function Header({ title, onOpenSidebar }: { title: string; onOpenSidebar: () => void }) {
+function ActionsPanel({
+    open,
+    fields,
+    onClose,
+}: {
+    open: boolean;
+    fields: FieldPlan[];
+    onClose: () => void;
+}) {
     return (
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] px-4 sm:px-6">
-            <button
-                type="button"
-                aria-label="Open sidebar"
-                onClick={onOpenSidebar}
-                className="grid size-8 place-items-center rounded-md hover:bg-white/[0.06] md:hidden"
+        <>
+            {open ? (
+                <button
+                    type="button"
+                    aria-label="Close actions"
+                    onClick={onClose}
+                    className="fixed inset-0 z-40 bg-black/70 xl:hidden"
+                />
+            ) : null}
+
+            <aside
+                className={`fixed inset-y-2 right-2 z-50 flex w-[280px] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0c0c] transition-transform duration-300 xl:static xl:inset-auto xl:translate-x-0 ${
+                    open ? "translate-x-0" : "translate-x-[120%]"
+                }`}
             >
-                <MenuIcon />
-            </button>
+                <div className="flex h-12 items-center gap-2 px-4 text-sm font-medium">
+                    <CheckIcon />
+                    Actions
+                </div>
 
-            <div className="min-w-0">
-                <p className="truncate text-xs font-medium text-white/55">{title}</p>
-            </div>
-
-            <HealthBadge />
-        </header>
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-5">
+                    {fields.length ? (
+                        <div className="space-y-2">
+                            <p className="text-[11px] text-white/35">
+                                Live fields returned by the planner.
+                            </p>
+                            {fields.map((field) => (
+                                <div
+                                    key={field.name}
+                                    className="rounded-lg border border-white/[0.07] bg-white/[0.03] px-3 py-3"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="truncate text-[12px] font-medium">
+                                            {field.name}
+                                        </span>
+                                        <span className="shrink-0 text-[10px] text-flare uppercase">
+                                            {field.type}
+                                        </span>
+                                    </div>
+                                    {field.description ? (
+                                        <p className="mt-1 text-[11px] leading-relaxed text-white/35">
+                                            {field.description}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="pt-16 text-center text-[12px] leading-relaxed text-white/30">
+                            Planned fields and run actions appear here after the backend returns a
+                            live schema.
+                        </p>
+                    )}
+                </div>
+            </aside>
+        </>
     );
 }
 
 function EmptyState() {
     return (
-        <div className="pb-10 pt-[8vh] text-center">
-            <div className="mx-auto grid size-12 place-items-center rounded-xl border border-flare/35 bg-flare/10 font-heavy text-sm text-flare">
-                SV
-            </div>
-            <h1 className="mt-5 font-heavy text-3xl tracking-[-0.04em] sm:text-4xl">
+        <div className="mx-auto max-w-md pb-8 pt-10 text-center">
+            <h1 className="text-2xl font-medium tracking-tight sm:text-3xl">
                 What should we scrape?
             </h1>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/40">
-                Describe a target and the fields you need. The response will come directly from the
-                live scraping planner.
+            <p className="mt-3 text-sm leading-relaxed text-white/40">
+                Describe a target and the data you need. The planner response comes from the live
+                API only.
             </p>
         </div>
     );
@@ -320,53 +420,25 @@ function ChatMessage({ message }: { message: Message }) {
 
     return (
         <motion.article
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease }}
-            className={isUser ? "flex justify-end" : ""}
+            transition={{ duration: 0.35, ease }}
+            className={`flex ${isUser ? "justify-end" : "items-start gap-2"}`}
         >
             {isUser ? (
-                <div className="max-w-[85%] sm:max-w-[72%]">
-                    <div className="rounded-2xl rounded-br-md bg-flare px-4 py-3 text-sm leading-relaxed text-white">
-                        {message.content}
-                    </div>
-                    <p className="mt-1.5 text-right font-mono text-[8px] text-white/20">
-                        {message.timestamp}
-                    </p>
+                <div className="max-w-[82%] rounded-2xl bg-[#3a1010] px-3.5 py-2.5 text-[13px] leading-6 text-white/90">
+                    {message.content}
                 </div>
             ) : (
-                <div className="flex max-w-full gap-3">
-                    <div
-                        className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border text-[8px] font-black ${
-                            message.status === "error"
-                                ? "border-flare/50 bg-flare/10 text-flare"
-                                : "border-white/15 bg-white/[0.04] text-white/65"
-                        }`}
-                    >
-                        SV
+                <>
+                    <div className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white/50">
+                        <AgentMark small />
                     </div>
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold">ScrapeVerse</span>
-                            {message.status ? (
-                                <span
-                                    className={`font-mono text-[8px] uppercase ${
-                                        message.status === "success"
-                                            ? "text-emerald-400"
-                                            : "text-flare"
-                                    }`}
-                                >
-                                    {message.status === "success" ? "Live API" : "API error"}
-                                </span>
-                            ) : null}
-                            <span className="font-mono text-[8px] text-white/20">
-                                {message.timestamp}
-                            </span>
-                        </div>
-                        <p className="mt-2 text-sm leading-7 text-white/75">{message.content}</p>
+                    <div className="max-w-[82%] rounded-2xl bg-[#161616] px-3.5 py-2.5 text-[13px] leading-6 text-white/80">
+                        <p>{message.content}</p>
                         {message.fields?.length ? <SchemaCard fields={message.fields} /> : null}
                     </div>
-                </div>
+                </>
             )}
         </motion.article>
     );
@@ -374,26 +446,24 @@ function ChatMessage({ message }: { message: Message }) {
 
 function SchemaCard({ fields }: { fields: FieldPlan[] }) {
     return (
-        <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.025]">
-            <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
-                <span className="font-mono text-[9px] tracking-[0.14em] text-white/40 uppercase">
-                    Live extraction plan
-                </span>
-                <span className="font-mono text-[9px] text-flare">{fields.length} FIELDS</span>
+        <div className="mt-3 overflow-hidden rounded-lg border border-white/[0.08] bg-black/30">
+            <div className="flex items-center justify-between px-3 py-2 text-[10px] text-white/40">
+                <span>Live extraction plan</span>
+                <span className="text-flare">{fields.length} fields</span>
             </div>
-            <div className="divide-y divide-white/[0.07]">
+            <div className="divide-y divide-white/[0.06]">
                 {fields.map((field) => (
                     <div
                         key={field.name}
-                        className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto_1.4fr] sm:items-center sm:gap-4"
+                        className="flex items-start justify-between gap-3 px-3 py-2"
                     >
-                        <span className="font-mono text-[10px] font-semibold text-white/80">
-                            {field.name}
-                        </span>
-                        <span className="w-fit rounded-full border border-flare/25 bg-flare/5 px-2 py-0.5 font-mono text-[8px] text-flare uppercase">
+                        <div className="min-w-0">
+                            <p className="truncate text-[12px] text-white/80">{field.name}</p>
+                            <p className="text-[11px] text-white/35">{field.description}</p>
+                        </div>
+                        <span className="shrink-0 text-[10px] text-flare uppercase">
                             {field.type}
                         </span>
-                        <span className="text-[11px] text-white/35">{field.description}</span>
                     </div>
                 ))}
             </div>
@@ -406,10 +476,10 @@ function ThinkingIndicator() {
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center gap-3"
+            className="flex items-center gap-2 text-[12px] text-white/40"
         >
-            <div className="grid size-7 place-items-center rounded-full border border-white/15 text-[8px] font-black text-white/60">
-                SV
+            <div className="grid size-6 place-items-center rounded-full border border-white/10">
+                <AgentMark small />
             </div>
             <div className="flex gap-1">
                 {[0, 1, 2].map((index) => (
@@ -421,7 +491,7 @@ function ThinkingIndicator() {
                     />
                 ))}
             </div>
-            <span className="font-mono text-[9px] text-white/30 uppercase">Contacting planner</span>
+            Contacting planner
         </motion.div>
     );
 }
@@ -440,44 +510,103 @@ function Composer({
     onSubmit: (event: FormEvent) => void;
 }) {
     return (
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-[#050505] via-[#050505] to-transparent px-4 pb-5 pt-12 sm:px-8">
+        <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 pt-10 sm:px-4">
             <form
                 onSubmit={onSubmit}
-                className="mx-auto max-w-3xl rounded-2xl border border-white/[0.12] bg-[#171717] p-2 shadow-2xl transition-colors focus-within:border-flare/45"
+                className="relative rounded-xl border border-white/[0.1] bg-[#141414] px-3 py-2"
             >
                 <textarea
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
                     onKeyDown={onKeyDown}
                     rows={1}
-                    placeholder="Ask ScrapVerse to scrape anything"
-                    className="max-h-36 min-h-11 w-full resize-none bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-white/30"
+                    placeholder="Ask Agent to scrape anything..."
+                    className="max-h-32 min-h-11 w-full resize-none bg-transparent pr-12 text-sm text-white outline-none placeholder:text-white/30"
                 />
-                <div className="flex items-center justify-between px-2 pb-1">
-                    <span className="font-mono text-[8px] text-white/20 uppercase">
-                        Shift + Enter for new line
-                    </span>
-                    <button
-                        type="submit"
-                        aria-label="Send scraping request"
-                        disabled={!value.trim() || pending}
-                        className="grid size-9 place-items-center rounded-full bg-flare text-white transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/20"
-                    >
-                        <SendIcon />
-                    </button>
-                </div>
+                <button
+                    type="submit"
+                    aria-label="Send"
+                    disabled={!value.trim() || pending}
+                    className="absolute right-2 bottom-2 grid size-8 place-items-center rounded-md bg-flare text-white disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/25"
+                >
+                    <SendIcon />
+                </button>
             </form>
-            <p className="mx-auto mt-2 max-w-3xl text-center font-mono text-[8px] text-white/15">
-                Only live API responses are shown
-            </p>
         </div>
     );
 }
 
-function NewChatIcon() {
+function ApiStatus() {
+    const [online, setOnline] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetch(`${API_URL}/health`, { signal: controller.signal })
+            .then((response) => setOnline(response.ok))
+            .catch((error: unknown) => {
+                if (error instanceof DOMException && error.name === "AbortError") return;
+                setOnline(false);
+            });
+        return () => controller.abort();
+    }, []);
+
+    const label = online === null ? "CHECKING" : online ? "CONNECTED" : "OFFLINE";
+
     return (
-        <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor">
-            <path d="M10 4v12M4 10h12" strokeWidth="1.5" strokeLinecap="round" />
+        <span className="inline-flex items-center gap-2 rounded-md bg-[#2a0d0d] px-2.5 py-1.5 text-[10px] font-medium tracking-wide text-white/80 uppercase">
+            <span
+                className={`size-1.5 rounded-full ${
+                    online ? "bg-flare" : online === null ? "bg-white/30" : "bg-white/25"
+                }`}
+            />
+            API {label}
+        </span>
+    );
+}
+
+function messagesLabel(fieldCount: number) {
+    return fieldCount ? `${fieldCount} fields · current` : "current session";
+}
+
+function AgentMark({ small = false }: { small?: boolean }) {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            className={small ? "size-3.5" : "size-4"}
+            fill="none"
+            stroke="currentColor"
+        >
+            <rect x="5" y="7" width="14" height="11" rx="3" strokeWidth="1.6" />
+            <path d="M9 12h.01M15 12h.01M9 15h6" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function ChatIcon() {
+    return (
+        <svg viewBox="0 0 20 20" className="size-3.5" fill="none" stroke="currentColor">
+            <path
+                d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9A1.5 1.5 0 0 1 16 5.5v6A1.5 1.5 0 0 1 14.5 13H8l-4 3V5.5Z"
+                strokeWidth="1.4"
+            />
+        </svg>
+    );
+}
+
+function CheckIcon() {
+    return (
+        <svg viewBox="0 0 20 20" className="size-3.5" fill="none" stroke="currentColor">
+            <circle cx="10" cy="10" r="6.5" strokeWidth="1.4" />
+            <path d="m7.5 10 1.8 1.8 3.2-3.6" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function SearchIcon() {
+    return (
+        <svg viewBox="0 0 20 20" className="size-3.5" fill="none" stroke="currentColor">
+            <circle cx="9" cy="9" r="5" strokeWidth="1.4" />
+            <path d="m13 13 3 3" strokeWidth="1.4" strokeLinecap="round" />
         </svg>
     );
 }
@@ -492,8 +621,8 @@ function MenuIcon() {
 
 function SendIcon() {
     return (
-        <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor">
-            <path d="m5 10 5-5 5 5M10 5v10" strokeWidth="1.7" strokeLinecap="round" />
+        <svg viewBox="0 0 20 20" className="size-3.5" fill="currentColor">
+            <path d="M3.2 10.2 16.4 4.1c.6-.3 1.2.4.9 1L13 16.8a.8.8 0 0 1-1.4.2l-2.6-4.2-4.4.8a.6.6 0 0 1-.7-.8l.3-2.6Z" />
         </svg>
     );
 }
