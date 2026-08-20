@@ -30,18 +30,14 @@ type Message = {
     content: string;
     timestamp: string;
     fields?: FieldPlan[];
-    mode?: "live" | "local";
+    mode?: "live" | "error";
 };
-
-type JobStatus = "running" | "healthy" | "draft";
 
 type Job = {
     id: string;
     name: string;
     target: string;
-    status: JobStatus;
-    rows: string;
-    progress: number;
+    fieldCount: number;
 };
 
 type PlanResponse = {
@@ -51,79 +47,14 @@ type PlanResponse = {
     };
 };
 
-const conversations = [
-    { id: "c-1", title: "Sneaker price monitor", time: "NOW", active: true },
-    { id: "c-2", title: "HN AI launch tracker", time: "19:42" },
-    { id: "c-3", title: "Hotel rate watch", time: "YEST." },
-];
-
-const initialJobs: Job[] = [
-    {
-        id: "SV-2049",
-        name: "AIR-JORDAN WATCH",
-        target: "nike.com",
-        status: "running",
-        rows: "1,284",
-        progress: 72,
-    },
-    {
-        id: "SV-1942",
-        name: "LAUNCH SIGNALS",
-        target: "news.ycombinator.com",
-        status: "healthy",
-        rows: "8,491",
-        progress: 100,
-    },
-    {
-        id: "SV-1886",
-        name: "RATE PULSE",
-        target: "booking.com",
-        status: "draft",
-        rows: "—",
-        progress: 18,
-    },
-];
-
 const initialMessages: Message[] = [
     {
-        id: "m-1",
+        id: "system-ready",
         role: "agent",
-        timestamp: "21:16",
+        timestamp: "READY",
         content:
             "ScrapeVerse node online. Tell me what website to inspect and what data you need. I’ll turn the request into a reviewable extraction plan.",
     },
-    {
-        id: "m-2",
-        role: "user",
-        timestamp: "21:17",
-        content:
-            "Track Air Jordan listings on Nike. I need the product name, current price, colorway, sizes and product URL.",
-    },
-    {
-        id: "m-3",
-        role: "agent",
-        timestamp: "21:17",
-        content:
-            "Target understood. I mapped five fields and prepared a recurring product monitor. Review the schema before deployment.",
-        fields: [
-            { name: "product_name", type: "text", description: "Product title", required: true },
-            { name: "price", type: "number", description: "Current listed price", required: true },
-            { name: "colorway", type: "text", description: "Displayed colorway" },
-            { name: "sizes", type: "array", description: "Available sizes" },
-            {
-                name: "product_url",
-                type: "url",
-                description: "Canonical product URL",
-                required: true,
-            },
-        ],
-    },
-];
-
-const resultRows = [
-    { product: "Air Jordan 1 Retro High OG", price: "$180", color: "Black / Varsity Red" },
-    { product: "Air Jordan 4 RM", price: "$150", color: "Sail / Black" },
-    { product: "Air Jordan 3 Retro", price: "$200", color: "White / Cement Grey" },
 ];
 
 function timestamp() {
@@ -134,48 +65,14 @@ function timestamp() {
     }).format(new Date());
 }
 
-function fallbackFields(instruction: string): FieldPlan[] {
-    const normalized = instruction.toLowerCase();
-    const fields: FieldPlan[] = [
-        { name: "title", type: "text", description: "Primary item title", required: true },
-        { name: "source_url", type: "url", description: "Source page URL", required: true },
-    ];
-
-    if (/price|cost|rate|fare/.test(normalized)) {
-        fields.splice(1, 0, {
-            name: "price",
-            type: "number",
-            description: "Current displayed price",
-            required: true,
-        });
-    }
-    if (/image|photo|thumbnail/.test(normalized)) {
-        fields.push({ name: "image_url", type: "url", description: "Primary image URL" });
-    }
-    if (/rating|review/.test(normalized)) {
-        fields.push({ name: "rating", type: "number", description: "Displayed rating" });
-    }
-    if (/date|published|time/.test(normalized)) {
-        fields.push({ name: "published_at", type: "date", description: "Published timestamp" });
-    }
-
-    return fields;
-}
-
-function statusColor(status: JobStatus) {
-    if (status === "healthy") return "bg-emerald-400";
-    if (status === "running") return "bg-flare";
-    return "bg-off-white/30";
-}
-
 export function DashboardClient() {
     const [messages, setMessages] = useState<Message[]>(initialMessages);
-    const [jobs, setJobs] = useState<Job[]>(initialJobs);
+    const [jobs, setJobs] = useState<Job[]>([]);
     const [instruction, setInstruction] = useState("");
     const [isPlanning, setIsPlanning] = useState(false);
     const [leftOpen, setLeftOpen] = useState(false);
     const [rightOpen, setRightOpen] = useState(false);
-    const [showJson, setShowJson] = useState(false);
+    const [conversationTitle, setConversationTitle] = useState("New scrape");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const latestPlan = useMemo(
@@ -203,9 +100,9 @@ export function DashboardClient() {
         setMessages((current) => [...current, userMessage]);
         setInstruction("");
         setIsPlanning(true);
+        setConversationTitle(request.slice(0, 42));
 
         let fields: FieldPlan[];
-        let mode: "live" | "local" = "live";
 
         try {
             const response = await fetch(`${API_URL}/scraper/plan`, {
@@ -219,8 +116,19 @@ export function DashboardClient() {
             fields = payload.data?.fields?.filter((field) => field.name) ?? [];
             if (!fields.length) throw new Error("Planning endpoint returned no fields");
         } catch {
-            mode = "local";
-            fields = fallbackFields(request);
+            setMessages((current) => [
+                ...current,
+                {
+                    id: crypto.randomUUID(),
+                    role: "agent",
+                    timestamp: timestamp(),
+                    mode: "error",
+                    content:
+                        "I couldn’t reach the scrape planning API. No schema was generated. Check the backend connection and try again.",
+                },
+            ]);
+            setIsPlanning(false);
+            return;
         }
 
         const target = request.match(/https?:\/\/([^/\s]+)/i)?.[1] ?? "Target pending";
@@ -228,23 +136,18 @@ export function DashboardClient() {
             id: crypto.randomUUID(),
             role: "agent",
             timestamp: timestamp(),
-            mode,
-            content:
-                mode === "live"
-                    ? `Plan received from the scrape engine. I mapped ${fields.length} fields for review.`
-                    : `The API node is offline, so I prepared a local ${fields.length}-field draft. Connect the backend before deployment.`,
+            mode: "live",
+            content: `Plan received from the scrape engine. I mapped ${fields.length} fields for review.`,
             fields,
         };
 
         setMessages((current) => [...current, agentMessage]);
         setJobs((current) => [
             {
-                id: `SV-${Math.floor(2100 + Math.random() * 700)}`,
+                id: `PLAN-${Date.now().toString(36).toUpperCase()}`,
                 name: request.slice(0, 28).toUpperCase(),
                 target,
-                status: "draft",
-                rows: "—",
-                progress: 24,
+                fieldCount: fields.length,
             },
             ...current,
         ]);
@@ -258,13 +161,27 @@ export function DashboardClient() {
         }
     }
 
+    function startNewConversation() {
+        setMessages(initialMessages);
+        setJobs([]);
+        setInstruction("");
+        setConversationTitle("New scrape");
+        setLeftOpen(false);
+    }
+
     return (
         <main className="relative h-dvh min-h-[680px] overflow-hidden bg-void text-off-white selection:bg-flare">
             <div className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] [background-size:36px_36px]" />
             <div className="pointer-events-none absolute -top-48 left-[35%] h-96 w-96 rounded-full bg-flare/15 blur-[140px]" />
 
             <div className="relative z-10 grid h-full lg:grid-cols-[280px_minmax(0,1fr)_340px]">
-                <DashboardSidebar jobs={jobs} open={leftOpen} onClose={() => setLeftOpen(false)} />
+                <DashboardSidebar
+                    jobs={jobs}
+                    conversationTitle={conversationTitle}
+                    open={leftOpen}
+                    onClose={() => setLeftOpen(false)}
+                    onNewConversation={startNewConversation}
+                />
 
                 <section className="flex min-w-0 flex-col border-x border-off-white/10">
                     <DashboardHeader
@@ -280,7 +197,7 @@ export function DashboardClient() {
                                         {"// ACTIVE CONVERSATION"}
                                     </p>
                                     <h1 className="mt-1 font-heavy text-2xl tracking-[-0.04em] uppercase sm:text-3xl">
-                                        Sneaker price monitor
+                                        {conversationTitle}
                                     </h1>
                                 </div>
 
@@ -309,8 +226,7 @@ export function DashboardClient() {
                     open={rightOpen}
                     onClose={() => setRightOpen(false)}
                     plan={latestPlan}
-                    showJson={showJson}
-                    onToggleJson={() => setShowJson((current) => !current)}
+                    job={jobs[0]}
                 />
             </div>
         </main>
@@ -364,12 +280,16 @@ function DashboardHeader({
 
 function DashboardSidebar({
     jobs,
+    conversationTitle,
     open,
     onClose,
+    onNewConversation,
 }: {
     jobs: Job[];
+    conversationTitle: string;
     open: boolean;
     onClose: () => void;
+    onNewConversation: () => void;
 }) {
     return (
         <>
@@ -406,6 +326,7 @@ function DashboardSidebar({
                 <div className="border-b border-off-white/10 p-4">
                     <button
                         type="button"
+                        onClick={onNewConversation}
                         className="group flex w-full items-center justify-between bg-flare px-4 py-3 font-mono text-xs font-bold tracking-widest uppercase transition-colors hover:bg-red-500"
                     >
                         New scrape
@@ -418,58 +339,46 @@ function DashboardSidebar({
                 <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
                     <SidebarLabel>Conversations</SidebarLabel>
                     <div className="mt-3 space-y-1">
-                        {conversations.map((conversation) => (
-                            <button
-                                type="button"
-                                key={conversation.id}
-                                className={`flex w-full items-start justify-between border-l-2 px-3 py-3 text-left transition-colors ${
-                                    conversation.active
-                                        ? "border-flare bg-off-white/7"
-                                        : "border-transparent hover:bg-off-white/5"
-                                }`}
-                            >
-                                <span className="max-w-[170px] truncate text-sm">
-                                    {conversation.title}
-                                </span>
-                                <span className="pt-0.5 font-mono text-[9px] text-off-white/30">
-                                    {conversation.time}
-                                </span>
-                            </button>
-                        ))}
+                        <div className="flex w-full items-start justify-between border-l-2 border-flare bg-off-white/7 px-3 py-3 text-left">
+                            <span className="max-w-[180px] truncate text-sm">
+                                {conversationTitle}
+                            </span>
+                            <span className="pt-0.5 font-mono text-[9px] text-off-white/30">
+                                NOW
+                            </span>
+                        </div>
                     </div>
 
                     <div className="mt-8">
                         <SidebarLabel>Scrape jobs</SidebarLabel>
                         <div className="mt-3 space-y-2">
-                            {jobs.slice(0, 4).map((job) => (
-                                <button
-                                    type="button"
-                                    key={job.id}
-                                    className="w-full border border-off-white/10 bg-off-white/[0.025] p-3 text-left transition-colors hover:border-off-white/25"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-mono text-[9px] text-off-white/35">
-                                            {job.id}
-                                        </span>
-                                        <span
-                                            className={`size-1.5 rounded-full ${statusColor(job.status)}`}
-                                        />
-                                    </div>
-                                    <p className="mt-2 truncate font-mono text-[11px] font-bold tracking-wide">
-                                        {job.name}
-                                    </p>
-                                    <div className="mt-3 h-px bg-off-white/10">
-                                        <div
-                                            className="h-px bg-flare"
-                                            style={{ width: `${job.progress}%` }}
-                                        />
-                                    </div>
-                                    <div className="mt-2 flex justify-between font-mono text-[9px] text-off-white/35">
-                                        <span>{job.target}</span>
-                                        <span>{job.rows} rows</span>
-                                    </div>
-                                </button>
-                            ))}
+                            {jobs.length ? (
+                                jobs.slice(0, 4).map((job) => (
+                                    <button
+                                        type="button"
+                                        key={job.id}
+                                        className="w-full border border-off-white/10 bg-off-white/[0.025] p-3 text-left transition-colors hover:border-off-white/25"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-mono text-[9px] text-off-white/35">
+                                                {job.id}
+                                            </span>
+                                            <span className="size-1.5 rounded-full bg-flare" />
+                                        </div>
+                                        <p className="mt-2 truncate font-mono text-[11px] font-bold tracking-wide">
+                                            {job.name}
+                                        </p>
+                                        <div className="mt-2 flex justify-between font-mono text-[9px] text-off-white/35">
+                                            <span>{job.target}</span>
+                                            <span>{job.fieldCount} fields</span>
+                                        </div>
+                                    </button>
+                                ))
+                            ) : (
+                                <p className="border border-dashed border-off-white/10 px-3 py-4 font-mono text-[9px] leading-relaxed text-off-white/25 uppercase">
+                                    No plans yet. Send a real scraping request to create one.
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -526,12 +435,10 @@ function ChatMessage({ message }: { message: Message }) {
                             {message.mode ? (
                                 <span
                                     className={
-                                        message.mode === "live"
-                                            ? "text-emerald-400"
-                                            : "text-amber-300"
+                                        message.mode === "live" ? "text-emerald-400" : "text-flare"
                                     }
                                 >
-                                    / {message.mode === "live" ? "API PLAN" : "LOCAL DRAFT"}
+                                    / {message.mode === "live" ? "API PLAN" : "API ERROR"}
                                 </span>
                             ) : null}
                         </>
@@ -588,20 +495,9 @@ function FieldPlanGrid({ fields }: { fields: FieldPlan[] }) {
                     </div>
                 ))}
             </div>
-            <div className="flex items-center justify-end gap-2 border-t border-off-white/10 p-3">
-                <button
-                    type="button"
-                    className="border border-off-white/15 px-3 py-2 font-mono text-[9px] tracking-widest text-off-white/60 uppercase hover:border-off-white/30"
-                >
-                    Edit fields
-                </button>
-                <button
-                    type="button"
-                    className="bg-flare px-3 py-2 font-mono text-[9px] font-bold tracking-widest uppercase hover:bg-red-500"
-                >
-                    Review schema →
-                </button>
-            </div>
+            <p className="border-t border-off-white/10 px-4 py-3 font-mono text-[9px] text-off-white/30 uppercase">
+                Schema returned by the live planning API
+            </p>
         </div>
     );
 }
@@ -659,7 +555,7 @@ function Composer({
                 />
                 <div className="flex items-center justify-between px-3 pb-3 sm:px-4">
                     <div className="flex items-center gap-3 font-mono text-[9px] text-off-white/25 uppercase">
-                        <span className="hidden sm:inline">Enter to deploy</span>
+                        <span className="hidden sm:inline">Enter to plan</span>
                         <span className="hidden sm:inline">/</span>
                         <span>Shift + Enter for line</span>
                     </div>
@@ -674,7 +570,7 @@ function Composer({
                 </div>
             </form>
             <p className="mx-auto mt-2 max-w-4xl text-center font-mono text-[8px] tracking-wider text-off-white/20 uppercase">
-                Review generated selectors before running against any target
+                Review planned fields before generating selectors
             </p>
         </div>
     );
@@ -684,14 +580,12 @@ function MissionControl({
     open,
     onClose,
     plan,
-    showJson,
-    onToggleJson,
+    job,
 }: {
     open: boolean;
     onClose: () => void;
     plan?: Message;
-    showJson: boolean;
-    onToggleJson: () => void;
+    job?: Job;
 }) {
     const schema = plan?.fields ?? [];
 
@@ -728,130 +622,82 @@ function MissionControl({
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto">
-                    <section className="border-b border-off-white/10 p-5">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="font-mono text-[9px] text-off-white/35 uppercase">
-                                    Preview job / SV-2049
-                                </p>
-                                <h3 className="mt-1 text-sm font-bold uppercase">
-                                    Air-Jordan Watch
-                                </h3>
-                            </div>
-                            <span className="border border-flare/40 bg-flare/10 px-2 py-1 font-mono text-[8px] text-flare uppercase">
-                                UI preview
-                            </span>
-                        </div>
-
-                        <div className="mt-5 grid grid-cols-3 gap-px bg-off-white/10">
-                            <Metric value="1,284" label="Rows" />
-                            <Metric value="98.2%" label="Quality" />
-                            <Metric value="02:14" label="Elapsed" />
-                        </div>
-
-                        <div className="mt-5">
-                            <div className="mb-2 flex justify-between font-mono text-[9px] text-off-white/40 uppercase">
-                                <span>Extraction progress</span>
-                                <span className="text-flare">72%</span>
-                            </div>
-                            <div className="h-1 bg-off-white/10">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: "72%" }}
-                                    transition={{ duration: 1.1, ease }}
-                                    className="h-full bg-flare"
-                                />
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="border-b border-off-white/10 p-5">
-                        <div className="flex items-center justify-between">
-                            <SidebarLabel>Data preview</SidebarLabel>
-                            <button
-                                type="button"
-                                onClick={onToggleJson}
-                                className="font-mono text-[9px] text-flare uppercase"
-                            >
-                                {showJson ? "Table" : "JSON"}
-                            </button>
-                        </div>
-
-                        {showJson ? (
-                            <pre className="mt-4 overflow-x-auto border border-off-white/10 bg-black p-3 font-mono text-[9px] leading-relaxed text-emerald-300">
-                                {JSON.stringify(resultRows.slice(0, 2), null, 2)}
-                            </pre>
-                        ) : (
-                            <div className="mt-4 space-y-2">
-                                {resultRows.map((row, index) => (
-                                    <div
-                                        key={row.product}
-                                        className="border border-off-white/10 bg-off-white/[0.025] p-3"
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <span className="font-mono text-[9px] text-flare">
-                                                0{index + 1}
-                                            </span>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate text-xs font-bold">
-                                                    {row.product}
-                                                </p>
-                                                <p className="mt-1 truncate text-[10px] text-off-white/35">
-                                                    {row.color}
-                                                </p>
-                                            </div>
-                                            <span className="font-mono text-xs text-off-white">
-                                                {row.price}
-                                            </span>
-                                        </div>
+                    {job && schema.length ? (
+                        <>
+                            <section className="border-b border-off-white/10 p-5">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <p className="font-mono text-[9px] text-off-white/35 uppercase">
+                                            {job.id}
+                                        </p>
+                                        <h3 className="mt-1 truncate text-sm font-bold uppercase">
+                                            {job.name}
+                                        </h3>
+                                        <p className="mt-2 truncate font-mono text-[9px] text-off-white/35">
+                                            {job.target}
+                                        </p>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="p-5">
-                        <SidebarLabel>Latest schema</SidebarLabel>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            {schema.length ? (
-                                schema.map((field) => (
-                                    <span
-                                        key={field.name}
-                                        className="border border-off-white/12 px-2 py-1 font-mono text-[8px] text-off-white/55 uppercase"
-                                    >
-                                        {field.name}
+                                    <span className="shrink-0 border border-emerald-400/35 bg-emerald-400/10 px-2 py-1 font-mono text-[8px] text-emerald-400 uppercase">
+                                        API plan
                                     </span>
-                                ))
-                            ) : (
-                                <p className="text-xs text-off-white/30">
-                                    Describe a target to generate fields.
+                                </div>
+                                <div className="mt-5 border border-off-white/10 bg-off-white/[0.025] p-4">
+                                    <p className="font-heavy text-3xl text-flare">
+                                        {schema.length}
+                                    </p>
+                                    <p className="mt-1 font-mono text-[9px] tracking-widest text-off-white/30 uppercase">
+                                        Fields returned by backend
+                                    </p>
+                                </div>
+                            </section>
+
+                            <section className="p-5">
+                                <SidebarLabel>Live schema</SidebarLabel>
+                                <div className="mt-4 space-y-2">
+                                    {schema.map((field) => (
+                                        <div
+                                            key={field.name}
+                                            className="border border-off-white/10 bg-off-white/[0.025] p-3"
+                                        >
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="truncate font-mono text-[10px] font-bold">
+                                                    {field.name}
+                                                </span>
+                                                <span className="font-mono text-[8px] text-flare uppercase">
+                                                    {field.type}
+                                                </span>
+                                            </div>
+                                            <p className="mt-2 text-[10px] leading-relaxed text-off-white/35">
+                                                {field.description}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    ) : (
+                        <div className="grid min-h-full place-items-center p-8 text-center">
+                            <div>
+                                <div className="mx-auto grid size-12 place-items-center border border-dashed border-off-white/20 font-mono text-flare">
+                                    00
+                                </div>
+                                <h3 className="mt-5 font-heavy text-lg uppercase">No live plan</h3>
+                                <p className="mt-2 max-w-56 text-xs leading-relaxed text-off-white/35">
+                                    Send a scraping instruction. This panel only displays data
+                                    returned by the backend.
                                 </p>
-                            )}
+                            </div>
                         </div>
-                    </section>
+                    )}
                 </div>
 
                 <div className="shrink-0 border-t border-off-white/10 p-4">
-                    <button
-                        type="button"
-                        className="w-full border border-off-white/15 py-3 font-mono text-[10px] font-bold tracking-[0.18em] uppercase transition-colors hover:border-flare hover:text-flare"
-                    >
-                        Open full results ↗
-                    </button>
+                    <p className="text-center font-mono text-[9px] leading-relaxed text-off-white/25 uppercase">
+                        Run controls unlock when the backend exposes execution and results APIs.
+                    </p>
                 </div>
             </aside>
         </>
-    );
-}
-
-function Metric({ value, label }: { value: string; label: string }) {
-    return (
-        <div className="bg-[#0d0d0d] px-2 py-3 text-center">
-            <p className="font-heavy text-lg">{value}</p>
-            <p className="mt-1 font-mono text-[8px] tracking-widest text-off-white/30 uppercase">
-                {label}
-            </p>
-        </div>
     );
 }
 
