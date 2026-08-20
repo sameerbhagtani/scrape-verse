@@ -1,0 +1,23 @@
+{
+    "name": "scrape-verse",
+    "private": true,
+    "type": "module",
+    "packageManager": "pnpm@11.22.0",
+    "scripts": {
+        "dev": "turbo dev",
+        "build": "turbo build",
+        "lint": "turbo lint",
+        "typecheck": "turbo typecheck",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "clean": "turbo clean",
+        "postclean": "rimraf node_modules .turbo"
+    },
+    "devDependencies": {
+        "@types/node": "^26.2.0",
+        "prettier": "^3.9.6",
+        "rimraf": "^6.1.3",
+        "turbo": "^2.10.11",
+        "typescript": "^7.0.2"
+    }
+}

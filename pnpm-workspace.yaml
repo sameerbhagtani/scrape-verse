@@ -1,0 +1,9 @@
+packages:
+    - apps/*
+    - packages/*
+allowBuilds:
+    "@scarf/scarf": set this to true or false
+    esbuild: set this to true or false
+    unrs-resolver: true
+minimumReleaseAgeExclude:
+    - "@langchain/core@1.2.9"
