@@ -4,11 +4,16 @@ import React, { useEffect } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { usePathname } from "next/navigation";
 
 gsap.registerPlugin(ScrollTrigger);
 
 export function GlobalProviders({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+
     useEffect(() => {
+        if (pathname.startsWith("/dashboard")) return;
+
         // Initialize Lenis smooth scroll
         const lenis = new Lenis({
             duration: 1.2,
@@ -33,7 +38,7 @@ export function GlobalProviders({ children }: { children: React.ReactNode }) {
             lenis.destroy();
             gsap.ticker.remove(lenis.raf);
         };
-    }, []);
+    }, [pathname]);
 
     return <>{children}</>;
 }
