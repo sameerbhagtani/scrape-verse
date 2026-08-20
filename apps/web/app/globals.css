@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
-:root {
-    --background: #ffffff;
-    --foreground: #171717;
+@source "../app";
+@source "../components";
+@source "../lib";
+
+@theme {
+    --font-display: var(--font-anton), Impact, "Arial Narrow", sans-serif;
+    --font-heavy: var(--font-archivo-black), "Arial Black", sans-serif;
+    --font-brush: var(--font-kaushan), cursive;
+    --font-sfx: var(--font-bangers), "Comic Sans MS", cursive;
+    --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+    --font-sans: var(--font-archivo), system-ui, sans-serif;
+
+    --color-void: #0b0b0b;
+    --color-off-white: #f8f8f8;
+    --color-flare: #ff0000;
+    --color-paper: #edeae2;
+    --color-fog: #dfdfe3;
 }
 
-@theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --background: #0a0a0a;
-        --foreground: #ededed;
-    }
+/* ---- Root ---- */
+html {
+    background: var(--color-void);
+    color: var(--color-off-white);
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
 }
 
 body {
-    background: var(--background);
-    color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+}
+
+::selection {
+    background: var(--color-flare);
+    color: var(--color-off-white);
+}
+
+/* ---- Slash-prefixed labels exactly like The Line ---- */
+.slash-before::before {
+    content: "/ ";
+    font-weight: 300;
+}
+
+/* ---- Giant editorial type ---- */
+.type-section-heading {
+    font-weight: 500;
+    line-height: 0.8;
+    letter-spacing: -0.04em;
+}
+
+/* ---- Hover animated underline ---- */
+.hover-line-wrap {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.hover-line-wrap .hover-line {
+    position: absolute;
+    bottom: 0;
+    height: 1.25px;
+    background: currentColor;
+    width: 0%;
+    right: 0;
+    left: auto;
+    transition:
+        width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+        left 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+        right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-line-wrap:hover .hover-line {
+    width: 100%;
+    left: 0;
+    right: auto;
+}
+
+/* ---- Monochrome media for duotone base ---- */
+.mono-media {
+    filter: grayscale(1) contrast(1.15) brightness(1.02);
 }
