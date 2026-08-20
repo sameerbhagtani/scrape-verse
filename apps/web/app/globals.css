@@ -33,6 +33,21 @@ body {
     text-rendering: optimizeLegibility;
 }
 
+html:has([data-dashboard-shell]),
+body:has([data-dashboard-shell]) {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    overflow: hidden;
+}
+
+[data-dashboard-shell] {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+}
+
 ::selection {
     background: var(--color-flare);
     color: var(--color-off-white);
@@ -81,4 +96,27 @@ body {
 /* ---- Monochrome media for duotone base ---- */
 .mono-media {
     filter: grayscale(1) contrast(1.15) brightness(1.02);
+}
+
+/* Full-viewport dashboard art: slight blur, no extra compression */
+.dashboard-screen-bg {
+    transform: scale(1.04);
+    filter: blur(4px) saturate(1.12) brightness(0.98);
+}
+
+.glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-chip {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-chip-active {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.32);
 }
