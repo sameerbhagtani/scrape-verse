@@ -8,18 +8,32 @@ import buildTokenPayload from "./buildTokenPayload.util.js";
 
 // function to create a session and return sanitized user with tokens
 async function createSession(user: Record<string, unknown> | object, res: Response) {
-    const u = user as { _id: { toString(): string } };
+    const rawId: any = (user as any)?._id || (user as any)?.id || (user as any)?.userId;
+    let userIdObj: mongoose.Types.ObjectId;
+
+    if (rawId instanceof mongoose.Types.ObjectId) {
+        userIdObj = rawId;
+    } else {
+        const str = String(rawId || "");
+        const hexMatch = str.match(/[0-9a-fA-F]{24}/);
+        if (hexMatch) {
+            userIdObj = new mongoose.Types.ObjectId(hexMatch[0]);
+        } else {
+            throw new Error(`Invalid user ID provided for session creation: ${str}`);
+        }
+    }
+
     const tokenPayload = await buildTokenPayload(user);
     const sessionId = new mongoose.Types.ObjectId();
     const refreshToken = generateRefreshToken({
         sessionId: sessionId.toString(),
-        userId: u._id.toString(),
+        userId: userIdObj.toString(),
     });
 
     const sDao = new SessionDao();
     await sDao.createSession({
         _id: sessionId,
-        userId: u._id,
+        userId: userIdObj,
         refreshToken: refreshToken,
         expiresAt: new Date(Date.now() + COOKIE_EXPIRY_TIME),
     });

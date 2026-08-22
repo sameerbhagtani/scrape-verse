@@ -23,17 +23,24 @@ class UserDao {
 
     // function to find a user by id
     async findUserById(id: string) {
-        return await this.UserModel.findById(id);
+        if (!id) return null;
+        const hexMatch = String(id).match(/[0-9a-fA-F]{24}/);
+        const validId = hexMatch ? hexMatch[0] : id;
+        return await this.UserModel.findById(validId);
     }
 
     // function to update a user by id
     async updateUserById(id: string, updateData: Record<string, unknown>) {
-        return await this.UserModel.findByIdAndUpdate(id, updateData, { returnDocument: "after" });
+        const hexMatch = String(id).match(/[0-9a-fA-F]{24}/);
+        const validId = hexMatch ? hexMatch[0] : id;
+        return await this.UserModel.findByIdAndUpdate(validId, updateData, { new: true });
     }
 
     // function to delete a user by id
     async deleteUserById(id: string) {
-        return await this.UserModel.findByIdAndDelete(id);
+        const hexMatch = String(id).match(/[0-9a-fA-F]{24}/);
+        const validId = hexMatch ? hexMatch[0] : id;
+        return await this.UserModel.findByIdAndDelete(validId);
     }
 }
 

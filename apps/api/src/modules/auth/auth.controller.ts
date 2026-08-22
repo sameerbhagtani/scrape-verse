@@ -153,7 +153,14 @@ class AuthController {
         }
 
         // getting the user from the session
-        const dbUserId = String((dbSession as unknown as Record<string, unknown>).userId || "");
+        const rawUserId = (dbSession as unknown as Record<string, unknown>).userId;
+        let dbUserId = "";
+        if (rawUserId) {
+            const rawStr = String(rawUserId);
+            const hexMatch = rawStr.match(/[0-9a-fA-F]{24}/);
+            dbUserId = hexMatch ? hexMatch[0] : rawStr;
+        }
+
         const user = await this.userDao.findUserById(dbUserId);
 
         // checking if the user exists
