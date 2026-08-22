@@ -112,6 +112,23 @@ class AuthController {
             throw new Unauthorized("Invalid email or password");
         }
 
+        // If user is unverified, dispatch a fresh OTP code
+        if (!user.isVerified) {
+            await this.tokenDao.deleteTokenByEmail(user.email, "otp");
+            const otp = generateOTPToken();
+            await this.tokenDao.createToken({
+                email: user.email,
+                type: "otp",
+                value: otp,
+                expiresAt: new Date(Date.now() + OTP_EXPIRY_TIME),
+            });
+            sendMail(
+                user.email,
+                "Verify your email",
+                `Your OTP is ${otp}. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.`,
+            );
+        }
+
         // creating session and tokens
         const { sanitizedUser, accessToken } = await createSession(user, res);
 
