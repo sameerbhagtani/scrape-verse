@@ -326,33 +326,37 @@ class AuthController {
         res.clearCookie("googleOAuthState");
         res.clearCookie("googleOAuthOrigin");
 
-        // fetching the google user using the authorization code
-        const googleUser = await getGoogleUserFromCode(code as string);
-        let user = await this.userDao.findUserByEmail(googleUser.email);
+        try {
+            // fetching the google user using the authorization code
+            const googleUser = await getGoogleUserFromCode(code as string);
+            let user = await this.userDao.findUserByEmail(googleUser.email);
 
-        if (user && !user.providers.includes("google")) {
-            // adding google provider to existing user
-            user = await this.userDao.updateUserById(user._id.toString(), {
-                $addToSet: { providers: "google" },
-                googleId: googleUser.googleId,
-                isVerified: true,
-            });
-        } else if (!user) {
-            // creating a new user from google profile
-            user = await this.userDao.createUser({
-                name: googleUser.name,
-                email: googleUser.email,
-                providers: ["google"],
-                googleId: googleUser.googleId,
-                isVerified: true,
-            });
+            if (user && !user.providers.includes("google")) {
+                // adding google provider to existing user
+                user = await this.userDao.updateUserById(user._id.toString(), {
+                    $addToSet: { providers: "google" },
+                    googleId: googleUser.googleId,
+                    isVerified: true,
+                });
+            } else if (!user) {
+                // creating a new user from google profile
+                user = await this.userDao.createUser({
+                    name: googleUser.name,
+                    email: googleUser.email,
+                    providers: ["google"],
+                    googleId: googleUser.googleId,
+                    isVerified: true,
+                });
+            }
+
+            // creating session for the authenticated user
+            await createSession(user!, res);
+
+            // returning redirect to dashboard
+            return res.redirect(`${clientOrigin}/dashboard`);
+        } catch {
+            return res.redirect(redirectToLogin);
         }
-
-        // creating session for the authenticated user
-        await createSession(user!, res);
-
-        // returning redirect to dashboard
-        return res.redirect(`${clientOrigin}/dashboard`);
     };
 
     // send password reset email
