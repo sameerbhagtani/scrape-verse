@@ -13,7 +13,7 @@ function sendMail(to: string, subject: string, html: string) {
             html,
         });
     } else {
-        logger.info(`[Mail Mock Log] To: ${to} | Subject: ${subject} | HTML: ${html}`);
+        logger.info(`📧 [Mail Mock] To: ${to} | Subject: "${subject}" | Message: ${html}`);
     }
 }
 
