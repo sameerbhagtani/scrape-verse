@@ -350,6 +350,72 @@ export function DashboardClient() {
         }
     }
 
+    async function planForUrl(url: string) {
+        if (isPlanning) return;
+        setActiveScraper(null);
+        setTargetUrlInput(url);
+
+        try {
+            const host = new URL(url).hostname.replace(/^www\./, "");
+            setScraperNameInput(`Scraper for ${host}`);
+        } catch {
+            setScraperNameInput("Custom Web Scraper");
+        }
+
+        const request = `Scrape items and fields from ${url}`;
+        const chatId = activeId ?? crypto.randomUUID();
+        if (!activeId) setActiveId(chatId);
+
+        const userMessage: Message = {
+            id: crypto.randomUUID(),
+            role: "user",
+            timestamp: timestamp(),
+            content: request,
+        };
+
+        patchActive(chatId, (current) => [...current, userMessage], request.slice(0, 38));
+        setIsPlanning(true);
+
+        try {
+            const response = await fetch(`${API_URL}/scraper/plan`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ instruction: request }),
+            });
+
+            if (!response.ok) throw new Error("Planning request failed");
+            const payload = (await response.json()) as PlanResponse;
+            const fields = payload.data?.fields?.filter((field) => field.name) ?? [];
+            if (!fields.length) throw new Error("Planning API returned no fields");
+
+            patchActive(chatId, (current) => [
+                ...current,
+                {
+                    id: crypto.randomUUID(),
+                    role: "agent",
+                    timestamp: timestamp(),
+                    status: "success",
+                    content: `The AI planner generated ${fields.length} extraction fields for ${url}. You can now deploy and test this scraper.`,
+                    fields,
+                },
+            ]);
+            setActionsOpen(true);
+        } catch {
+            patchActive(chatId, (current) => [
+                ...current,
+                {
+                    id: crypto.randomUUID(),
+                    role: "agent",
+                    timestamp: timestamp(),
+                    status: "error",
+                    content: "Failed to generate extraction plan. Please ensure the backend is running.",
+                },
+            ]);
+        } finally {
+            setIsPlanning(false);
+        }
+    }
+
     async function deployScraper() {
         if (!latestFields.length || isDeploying) return;
         setIsDeploying(true);
@@ -613,13 +679,7 @@ export function DashboardClient() {
                                             onDeployClick={() => setActionsOpen(true)}
                                             onRunClick={() => void triggerRun()}
                                             onOpenResults={() => setResultsOpen(true)}
-                                            onPlanUrl={(url) => {
-                                                setTargetUrlInput(url);
-                                                setInstruction(
-                                                    `Scrape key data and items from ${url}`,
-                                                );
-                                                setActionsOpen(true);
-                                            }}
+                                            onPlanUrl={planForUrl}
                                         />
                                     ))}
                                 </AnimatePresence>
@@ -681,6 +741,7 @@ export function DashboardClient() {
                 onHtmlOverrideChange={setHtmlOverride}
                 onDeploy={deployScraper}
                 onRun={() => void triggerRun()}
+                onNewScraper={() => setActiveScraper(null)}
                 onOpenResults={() => setResultsOpen(true)}
                 onClose={() => setActionsOpen(false)}
             />
@@ -1014,6 +1075,7 @@ function ActionsPanel({
     onHtmlOverrideChange,
     onDeploy,
     onRun,
+    onNewScraper,
     onOpenResults,
     onClose,
 }: {
@@ -1032,6 +1094,7 @@ function ActionsPanel({
     onHtmlOverrideChange: (val: string) => void;
     onDeploy: () => void;
     onRun: () => void;
+    onNewScraper?: () => void;
     onOpenResults: () => void;
     onClose: () => void;
 }) {
@@ -1124,10 +1187,20 @@ function ActionsPanel({
                                 <button
                                     type="button"
                                     onClick={onOpenResults}
-                                    className="w-full glass-chip py-2 rounded-lg text-xs text-white/80 hover:bg-white/10 transition-all"
+                                    className="w-full glass-chip py-2 rounded-lg text-xs text-white/80 hover:bg-white/10 transition-all cursor-pointer"
                                 >
                                     View Data & Quality Report
                                 </button>
+
+                                {onNewScraper ? (
+                                    <button
+                                        type="button"
+                                        onClick={onNewScraper}
+                                        className="w-full glass-chip py-2 rounded-lg text-xs text-flare/90 hover:bg-flare/20 hover:text-white transition-all cursor-pointer border border-flare/20"
+                                    >
+                                        + Deploy / Configure New Scraper
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
                     ) : null}
