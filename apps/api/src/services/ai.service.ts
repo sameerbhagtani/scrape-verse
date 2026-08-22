@@ -100,42 +100,77 @@ export class AIService {
             JSON.stringify(fields, null, 2),
         );
 
+        const normalizeItem = (f: any): SchemaField => {
+            let selector = f.selector;
+            if (!selector) {
+                if (Array.isArray(f.extractionStrategy) && f.extractionStrategy.length > 0) {
+                    selector = f.extractionStrategy[0];
+                } else if (
+                    typeof f.extractionStrategy === "string" &&
+                    f.extractionStrategy.trim()
+                ) {
+                    selector = f.extractionStrategy.trim();
+                } else {
+                    selector = `.${f.name}`;
+                }
+            }
+
+            let extractionStrategy = f.extractionStrategy;
+            if (Array.isArray(extractionStrategy)) {
+                extractionStrategy = extractionStrategy.join(", ");
+            } else if (typeof extractionStrategy !== "string") {
+                extractionStrategy = String(extractionStrategy || "");
+            }
+
+            let validationRules = f.validationRules || [];
+            if (Array.isArray(validationRules)) {
+                validationRules = validationRules.map((rule: any) => {
+                    if (typeof rule === "string") return { type: rule };
+                    return rule;
+                });
+            }
+
+            let normalizationRules = f.normalizationRules || [];
+            if (Array.isArray(normalizationRules)) {
+                normalizationRules = normalizationRules.map((rule: any) => {
+                    if (typeof rule === "string") return { type: rule };
+                    return rule;
+                });
+            }
+
+            return {
+                name: f.name || "field",
+                type: (f.type as any) || "string",
+                required: f.required !== undefined ? Boolean(f.required) : true,
+                description: f.description || "",
+                selector: String(selector),
+                extractionStrategy,
+                validationRules,
+                normalizationRules,
+            };
+        };
+
         if (!this.model) {
             logger.info("Using mock schema generator.");
-            return fields.map((f) => ({
-                name: f.name,
-                type: (f.type as any) || "string",
-                required: f.required !== undefined ? f.required : true,
-                description: f.description || "",
-                validationRules:
-                    f.type === "number" ? [{ type: "containsNumber" }] : [{ type: "notEmpty" }],
-                selector: "selector" in f && f.selector ? f.selector : `.${f.name}`,
-                normalizationRules: f.name.toLowerCase().includes("price")
-                    ? [{ type: "stripCurrency" }]
-                    : [],
-            }));
+            return fields.map((f) =>
+                normalizeItem({
+                    ...f,
+                    validationRules:
+                        f.type === "number" ? [{ type: "containsNumber" }] : [{ type: "notEmpty" }],
+                    selector: "selector" in f && f.selector ? f.selector : `.${f.name}`,
+                    normalizationRules: f.name.toLowerCase().includes("price")
+                        ? [{ type: "stripCurrency" }]
+                        : [],
+                }),
+            );
         }
 
-        const generated = await this.queryLLM<SchemaField[]>(prompt);
+        const generated = await this.queryLLM<any[]>(prompt);
         if (generated && Array.isArray(generated)) {
-            return generated;
+            return generated.map(normalizeItem);
         }
 
-        return fields.map((f) => ({
-            name: f.name,
-            type: (f.type as any) || "string",
-            required: f.required !== undefined ? f.required : true,
-            description: f.description || "",
-            validationRules:
-                "validationRules" in f && f.validationRules
-                    ? f.validationRules
-                    : f.type === "number"
-                      ? [{ type: "containsNumber" }]
-                      : [{ type: "notEmpty" }],
-            selector: "selector" in f && f.selector ? f.selector : `.${f.name}`,
-            normalizationRules:
-                "normalizationRules" in f && f.normalizationRules ? f.normalizationRules : [],
-        }));
+        return fields.map(normalizeItem);
     }
 
     /**

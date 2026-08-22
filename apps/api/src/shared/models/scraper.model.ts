@@ -37,7 +37,7 @@ const fieldSchema = new mongoose.Schema(
         validationRules: [validationRuleSchema],
         normalizationRules: [normalizationRuleSchema],
         description: { type: String, default: "" },
-        extractionStrategy: { type: String, default: "" },
+        extractionStrategy: { type: mongoose.Schema.Types.Mixed, default: "" },
     },
     { _id: false },
 );
@@ -146,6 +146,62 @@ const scraperSchema = new mongoose.Schema(
     },
     { timestamps: true },
 );
+
+// Pre-validate hook to defensively sanitize fields before validation
+scraperSchema.pre("validate", function (next) {
+    if (this.fields && Array.isArray(this.fields)) {
+        this.fields = this.fields.map((f: any) => {
+            let selector = f.selector;
+            if (!selector) {
+                if (Array.isArray(f.extractionStrategy) && f.extractionStrategy.length > 0) {
+                    selector = f.extractionStrategy[0];
+                } else if (
+                    typeof f.extractionStrategy === "string" &&
+                    f.extractionStrategy.trim()
+                ) {
+                    selector = f.extractionStrategy.trim();
+                } else {
+                    selector = `.${f.name}`;
+                }
+            }
+
+            let extractionStrategy = f.extractionStrategy;
+            if (Array.isArray(extractionStrategy)) {
+                extractionStrategy = extractionStrategy.join(", ");
+            } else if (typeof extractionStrategy !== "string") {
+                extractionStrategy = String(extractionStrategy || "");
+            }
+
+            let validationRules = f.validationRules || [];
+            if (Array.isArray(validationRules)) {
+                validationRules = validationRules.map((rule: any) => {
+                    if (typeof rule === "string") return { type: rule };
+                    return rule;
+                });
+            }
+
+            let normalizationRules = f.normalizationRules || [];
+            if (Array.isArray(normalizationRules)) {
+                normalizationRules = normalizationRules.map((rule: any) => {
+                    if (typeof rule === "string") return { type: rule };
+                    return rule;
+                });
+            }
+
+            return {
+                name: f.name || "field",
+                type: f.type || "string",
+                selector: String(selector),
+                required: Boolean(f.required),
+                description: f.description || "",
+                extractionStrategy,
+                validationRules,
+                normalizationRules,
+            };
+        }) as any;
+    }
+    next();
+});
 
 const Scraper = mongoose.model("Scraper", scraperSchema);
 export default Scraper;

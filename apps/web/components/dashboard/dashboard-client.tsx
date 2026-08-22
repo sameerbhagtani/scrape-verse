@@ -323,7 +323,10 @@ export function DashboardClient() {
                 }),
             });
 
-            if (!createRes.ok) throw new Error("Failed to create scraper");
+            if (!createRes.ok) {
+                const errData = (await createRes.json().catch(() => ({}))) as { message?: string };
+                throw new Error(errData?.message || "Failed to create scraper");
+            }
             const createData = (await createRes.json()) as ApiResponse<ScraperConfig>;
 
             if (createData.data) {
