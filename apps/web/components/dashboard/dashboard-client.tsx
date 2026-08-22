@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     type FormEvent,
     type KeyboardEvent,
@@ -103,9 +104,21 @@ function useSlideDrawer(open: boolean, setOpen: (open: boolean) => void, width: 
 }
 
 export function DashboardClient() {
-    const { user, logout } = useAuth();
+    const router = useRouter();
+    const { user, logout, isLoading, isAuthenticated } = useAuth();
     const [chats, setChats] = useState<ChatSession[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isLoading) return;
+        if (!isAuthenticated || !user) {
+            router.replace("/login");
+            return;
+        }
+        if (!user.isVerified) {
+            router.replace(`/verify?email=${encodeURIComponent(user.email)}`);
+        }
+    }, [isLoading, isAuthenticated, user, router]);
     const [instruction, setInstruction] = useState("");
     const [isPlanning, setIsPlanning] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -452,6 +465,21 @@ export function DashboardClient() {
             event.preventDefault();
             void submitInstruction();
         }
+    }
+
+    if (isLoading || !isAuthenticated || !user?.isVerified) {
+        return (
+            <main className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-void font-mono text-xs text-white">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="size-8 rounded-full border-2 border-flare border-t-transparent animate-spin" />
+                    <p className="tracking-widest uppercase text-white/70">
+                        {isLoading
+                            ? "AUTHENTICATING MULTIVERSE NODE..."
+                            : "VERIFYING CREDENTIALS..."}
+                    </p>
+                </div>
+            </main>
+        );
     }
 
     return (

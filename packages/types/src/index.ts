@@ -262,6 +262,15 @@ export interface GoogleLoginDto {
     idToken: string;
 }
 
+export interface VerifyOtpDto {
+    email: string;
+    otp: string;
+}
+
+export interface ResendOtpDto {
+    email: string;
+}
+
 // ─── Common API Responses ───
 
 export interface ApiResponse<T = any> {

@@ -78,10 +78,35 @@ const googleLoginValidators = [
     validateErrors,
 ];
 
+const verifyOtpValidators = [
+    body("email")
+        .notEmpty()
+        .withMessage("Email is required")
+        .isEmail()
+        .withMessage("Email is invalid"),
+    body("otp")
+        .notEmpty()
+        .withMessage("OTP code is required")
+        .isLength({ min: 4, max: 10 })
+        .withMessage("OTP must be between 4 and 10 characters"),
+    validateErrors,
+];
+
+const resendOtpValidators = [
+    body("email")
+        .notEmpty()
+        .withMessage("Email is required")
+        .isEmail()
+        .withMessage("Email is invalid"),
+    validateErrors,
+];
+
 export {
     signupValidators,
     loginValidators,
     forgotPasswordValidators,
     resetPasswordValidators,
     googleLoginValidators,
+    verifyOtpValidators,
+    resendOtpValidators,
 };

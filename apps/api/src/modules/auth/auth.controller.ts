@@ -390,6 +390,80 @@ class AuthController {
         // returning success response
         return Ok(res, "Password reset Successfully");
     };
+
+    // verify user OTP
+    verifyOTP = async (req: Request, res: Response) => {
+        const { email, otp } = req.body;
+
+        const user = await this.userDao.findUserByEmail(email);
+        if (!user) {
+            throw new NotFound("User not found");
+        }
+
+        if (user.isVerified) {
+            const { sanitizedUser, accessToken } = await createSession(user, res);
+            return Ok(res, "Account is already verified", {
+                user: sanitizedUser,
+                accessToken,
+            });
+        }
+
+        const token = await this.tokenDao.findTokenByValue(otp);
+        if (!token || token.type !== "otp" || token.email !== email) {
+            throw new Unauthorized("Invalid or expired verification code");
+        }
+
+        // Delete token once verified
+        await this.tokenDao.deleteTokenByValue(otp);
+
+        // Update user isVerified in database
+        const updatedUser = await this.userDao.updateUserById(user._id.toString(), {
+            isVerified: true,
+        });
+
+        // Recreate session with verified status
+        const { sanitizedUser, accessToken } = await createSession(updatedUser || user, res);
+
+        return Ok(res, "Identity verified successfully", {
+            user: sanitizedUser,
+            accessToken,
+        });
+    };
+
+    // resend user OTP
+    resendOTP = async (req: Request, res: Response) => {
+        const { email } = req.body;
+
+        const user = await this.userDao.findUserByEmail(email);
+        if (!user) {
+            throw new NotFound("User not found");
+        }
+
+        if (user.isVerified) {
+            return Ok(res, "Account is already verified");
+        }
+
+        // Delete any old OTP tokens for this email
+        await this.tokenDao.deleteTokenByEmail(email, "otp");
+
+        // Generate new OTP
+        const otp = generateOTPToken();
+
+        await this.tokenDao.createToken({
+            email,
+            type: "otp",
+            value: otp,
+            expiresAt: new Date(Date.now() + OTP_EXPIRY_TIME),
+        });
+
+        sendMail(
+            email,
+            "Verify your email",
+            `Your OTP is ${otp}. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.`,
+        );
+
+        return Ok(res, "Verification code sent to your email");
+    };
 }
 
 export default AuthController;

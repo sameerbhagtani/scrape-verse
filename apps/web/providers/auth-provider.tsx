@@ -15,7 +15,9 @@ interface AuthContextType {
         name: string,
         email: string,
         password: string,
-    ) => Promise<{ success: boolean; error?: string }>;
+    ) => Promise<{ success: boolean; error?: string; user?: User }>;
+    verifyOTP: (email: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+    resendOTP: (email: string) => Promise<{ success: boolean; message?: string; error?: string }>;
     logout: () => Promise<void>;
     forgotPassword: (
         email: string,
@@ -111,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: string,
         email: string,
         password: string,
-    ): Promise<{ success: boolean; error?: string }> => {
+    ): Promise<{ success: boolean; error?: string; user?: User }> => {
         setIsLoading(true);
         try {
             const res = await fetch(`${API_URL}/auth/signup`, {
@@ -130,10 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const payload = data as ApiResponse<AuthResponse>;
-            if (payload.data?.user && payload.data?.accessToken) {
+            if (payload.data?.user) {
                 setUser(payload.data.user);
-                setAccessToken(payload.data.accessToken);
-                return { success: true };
+                if (payload.data.accessToken) {
+                    setAccessToken(payload.data.accessToken);
+                }
+                return { success: true, user: payload.data.user };
             }
             return { success: false, error: "Unexpected response from auth service" };
         } catch (err) {
@@ -143,6 +147,78 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Verify OTP
+    const verifyOTP = async (
+        email: string,
+        otp: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+        setIsLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/auth/verify-otp`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ email, otp }),
+                credentials: "include",
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                return {
+                    success: false,
+                    error: data.message || "Verification failed. Please check the code.",
+                };
+            }
+
+            const payload = data as ApiResponse<AuthResponse>;
+            if (payload.data?.user) {
+                setUser(payload.data.user);
+                if (payload.data.accessToken) {
+                    setAccessToken(payload.data.accessToken);
+                }
+                return { success: true };
+            }
+            return { success: true };
+        } catch (err) {
+            return {
+                success: false,
+                error: (err as Error).message || "Connection to auth server failed",
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Resend OTP
+    const resendOTP = async (
+        email: string,
+    ): Promise<{ success: boolean; message?: string; error?: string }> => {
+        try {
+            const res = await fetch(`${API_URL}/auth/resend-otp`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ email }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                return {
+                    success: false,
+                    error: data.message || "Failed to resend code.",
+                };
+            }
+
+            return {
+                success: true,
+                message: data.message || "Verification code sent to your email.",
+            };
+        } catch (err) {
+            return {
+                success: false,
+                error: (err as Error).message || "Failed to reach server.",
+            };
         }
     };
 
@@ -228,6 +304,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         login,
         signup,
+        verifyOTP,
+        resendOTP,
         logout,
         forgotPassword,
         refreshSession,

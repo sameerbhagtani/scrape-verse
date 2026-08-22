@@ -37,10 +37,14 @@ function LoginContent() {
         }
     }, [searchParams]);
 
-    // Redirect to dashboard if authenticated
+    // Redirect if authenticated
     useEffect(() => {
         if (isAuthenticated && user) {
-            router.replace("/dashboard");
+            if (!user.isVerified) {
+                router.replace(`/verify?email=${encodeURIComponent(user.email)}`);
+            } else {
+                router.replace("/dashboard");
+            }
         }
     }, [isAuthenticated, user, router]);
 
@@ -54,7 +58,11 @@ function LoginContent() {
             if (mode === "signin") {
                 const res = await login(email, password);
                 if (res.success) {
-                    router.push("/dashboard");
+                    if (user && !user.isVerified) {
+                        router.push(`/verify?email=${encodeURIComponent(email)}`);
+                    } else {
+                        router.push("/dashboard");
+                    }
                 } else {
                     setErrorMsg(res.error || "Invalid email or password");
                 }
@@ -66,10 +74,10 @@ function LoginContent() {
                 }
                 const res = await signup(name.trim(), email, password);
                 if (res.success) {
-                    setSuccessMsg("Account created! Redirecting to ScrapeVerse...");
+                    setSuccessMsg("Account created! Redirecting to verification...");
                     setTimeout(() => {
-                        router.push("/dashboard");
-                    }, 800);
+                        router.push(`/verify?email=${encodeURIComponent(email)}`);
+                    }, 600);
                 } else {
                     setErrorMsg(res.error || "Registration failed");
                 }

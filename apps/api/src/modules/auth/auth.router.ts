@@ -7,6 +7,8 @@ import {
     forgotPasswordValidators,
     resetPasswordValidators,
     googleLoginValidators,
+    verifyOtpValidators,
+    resendOtpValidators,
 } from "./auth.validator.js";
 import authMiddleware from "../../shared/middlewares/auth.middleware.js";
 import refreshMiddleware from "../../shared/middlewares/refresh.middleware.js";
@@ -81,6 +83,20 @@ router.post("/forgot-password", forgotPasswordValidators, authController.forgotP
     @access Public
 */
 router.post("/reset-password", resetPasswordValidators, authController.resetPassword);
+
+/*
+    @route POST /api/auth/verify-otp
+    @desc Verify email using OTP
+    @access Public
+*/
+router.post("/verify-otp", verifyOtpValidators, authController.verifyOTP);
+
+/*
+    @route POST /api/auth/resend-otp
+    @desc Resend verification OTP to email
+    @access Public
+*/
+router.post("/resend-otp", resendOtpValidators, authController.resendOTP);
 
 // exporting the router
 export default router;
