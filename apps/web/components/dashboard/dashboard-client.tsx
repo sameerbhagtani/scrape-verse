@@ -374,6 +374,11 @@ export function DashboardClient() {
                 }),
             });
 
+            if (!res.ok) {
+                const errData = (await res.json().catch(() => ({}))) as { message?: string };
+                throw new Error(errData?.message || `Execution failed with status ${res.status}`);
+            }
+
             const data = (await res.json()) as ApiResponse<ScraperRunResult>;
             if (data.data) {
                 setLastRunResult(data.data);
@@ -381,7 +386,7 @@ export function DashboardClient() {
                     setScrapedDataItems(data.data.scrapedItems);
                 }
                 setResultsOpen(true);
-                setResultsTab("data");
+                setResultsTab(data.data.scrapedItemsCount > 0 ? "data" : "quality");
 
                 void loadScraperDetails(id);
 

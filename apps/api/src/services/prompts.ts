@@ -59,7 +59,7 @@ Here is a snippet of the HTML structure of the target website:
 
 Analyze the HTML structure. Locate the element that contains the "{fieldName}" data.
 Generate a list of 5 candidate CSS selectors that can successfully extract this data. Order them from highest confidence to lowest confidence.
-Provide your response strictly as a JSON array of strings:
+Output MUST be ONLY a valid JSON array of strings, without any explanations, markdown code blocks, or preamble:
 ["selector-1", "selector-2", "selector-3", "selector-4", "selector-5"]
 `,
 

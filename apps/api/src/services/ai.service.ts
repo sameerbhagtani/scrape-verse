@@ -36,14 +36,35 @@ export class AIService {
             const response = await this.model.invoke([message]);
             const text = response.content.toString().trim();
 
-            // Strip out any potential markdown wrapper (e.g. ```json ... ```)
+            // First attempt: clean markdown formatting
             const cleanText = text
-                .replace(/^```json/i, "")
-                .replace(/^```/m, "")
-                .replace(/```$/m, "")
+                .replace(/^```json\s*/i, "")
+                .replace(/^```\s*/m, "")
+                .replace(/```\s*$/m, "")
                 .trim();
 
-            return JSON.parse(cleanText) as T;
+            try {
+                return JSON.parse(cleanText) as T;
+            } catch {
+                // Second attempt: extract JSON array substring
+                const jsonArrayMatch = text.match(/\[\s*[\s\S]*\s*\]/);
+                if (jsonArrayMatch) {
+                    try {
+                        return JSON.parse(jsonArrayMatch[0]) as T;
+                    } catch {}
+                }
+
+                // Third attempt: extract JSON object substring
+                const jsonObjectMatch = text.match(/\{\s*[\s\S]*\s*\}/);
+                if (jsonObjectMatch) {
+                    try {
+                        return JSON.parse(jsonObjectMatch[0]) as T;
+                    } catch {}
+                }
+            }
+
+            logger.warn(`Could not parse JSON from LLM output: ${text.slice(0, 100)}...`);
+            return null;
         } catch (error) {
             logger.error(`Error querying LangChain Mistral Model: ${(error as Error).message}`);
             return null;
