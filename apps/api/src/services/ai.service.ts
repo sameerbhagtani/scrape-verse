@@ -1,5 +1,6 @@
 import { ChatMistralAI } from "@langchain/mistralai";
 import { HumanMessage } from "@langchain/core/messages";
+import type { FieldPlan, ScraperPlanResponse, SchemaField } from "@scrape-verse/types";
 import env from "../shared/config/env.config.js";
 import logger from "../shared/config/logger.config.js";
 import { PROMPTS } from "./prompts.js";
@@ -52,9 +53,7 @@ export class AIService {
     /**
      * Feature 1 & 2: Plan scraper fields from natural language instructions
      */
-    public async planScraper(instruction: string): Promise<{
-        fields: { name: string; type: string; required: boolean; description: string }[];
-    }> {
+    public async planScraper(instruction: string): Promise<ScraperPlanResponse> {
         const prompt = PROMPTS.SCRAPER_PLANNER.replace("{instruction}", instruction);
 
         if (!this.model) {
@@ -84,7 +83,7 @@ export class AIService {
             };
         }
 
-        const planned = await this.queryLLM<{ fields: any[] }>(prompt);
+        const planned = await this.queryLLM<ScraperPlanResponse>(prompt);
         if (planned && planned.fields) {
             return planned;
         }
@@ -95,7 +94,7 @@ export class AIService {
     /**
      * Feature 3: Automatic Schema Generation
      */
-    public async generateSchema(fields: any[]): Promise<any[]> {
+    public async generateSchema(fields: FieldPlan[] | SchemaField[]): Promise<SchemaField[]> {
         const prompt = PROMPTS.SCHEMA_GENERATOR.replace(
             "{fieldsJson}",
             JSON.stringify(fields, null, 2),
@@ -105,24 +104,38 @@ export class AIService {
             logger.info("Using mock schema generator.");
             return fields.map((f) => ({
                 name: f.name,
-                type: f.type || "string",
+                type: (f.type as any) || "string",
                 required: f.required !== undefined ? f.required : true,
                 description: f.description || "",
                 validationRules:
                     f.type === "number" ? [{ type: "containsNumber" }] : [{ type: "notEmpty" }],
-                selector: f.selector || `.${f.name}`,
+                selector: "selector" in f && f.selector ? f.selector : `.${f.name}`,
                 normalizationRules: f.name.toLowerCase().includes("price")
                     ? [{ type: "stripCurrency" }]
                     : [],
             }));
         }
 
-        const generated = await this.queryLLM<any[]>(prompt);
+        const generated = await this.queryLLM<SchemaField[]>(prompt);
         if (generated && Array.isArray(generated)) {
             return generated;
         }
 
-        return fields;
+        return fields.map((f) => ({
+            name: f.name,
+            type: (f.type as any) || "string",
+            required: f.required !== undefined ? f.required : true,
+            description: f.description || "",
+            validationRules:
+                "validationRules" in f && f.validationRules
+                    ? f.validationRules
+                    : f.type === "number"
+                      ? [{ type: "containsNumber" }]
+                      : [{ type: "notEmpty" }],
+            selector: "selector" in f && f.selector ? f.selector : `.${f.name}`,
+            normalizationRules:
+                "normalizationRules" in f && f.normalizationRules ? f.normalizationRules : [],
+        }));
     }
 
     /**

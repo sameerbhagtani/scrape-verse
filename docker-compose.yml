@@ -1,0 +1,20 @@
+services:
+    mongodb:
+        image: mongo:7.0
+        container_name: scrape-verse-mongodb
+        restart: unless-stopped
+
+        ports:
+            - "27017:27017"
+
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: user
+            MONGO_INITDB_ROOT_PASSWORD: password
+            MONGO_INITDB_DATABASE: scrape_verse_db
+
+        volumes:
+            - mongodb_data:/data/db
+
+volumes:
+    mongodb_data:
+        name: scrape-verse-mongodb-data

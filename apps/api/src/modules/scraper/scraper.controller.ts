@@ -1,4 +1,10 @@
 import type { Request, Response } from "express";
+import type {
+    CreateScraperDto,
+    RollbackScraperDto,
+    ScraperPlanRequest,
+    SchemaGeneratorRequest,
+} from "@scrape-verse/types";
 import Scraper from "../../shared/models/scraper.model.js";
 import ScrapedData from "../../shared/models/scrapedData.model.js";
 import ScraperLog from "../../shared/models/scraperLog.model.js";

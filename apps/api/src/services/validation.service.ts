@@ -1,23 +1,12 @@
+import type {
+    ValidationRule,
+    SchemaField,
+    ValidationResult,
+    QualityScoreResult,
+} from "@scrape-verse/types";
 import logger from "../shared/config/logger.config.js";
 
-export interface ValidationRule {
-    type: "notEmpty" | "containsNumber" | "numberRange" | "isValidUrl";
-    min?: number;
-    max?: number;
-}
-
-export interface SchemaField {
-    name: string;
-    type: "string" | "number" | "boolean" | "url" | "date";
-    required: boolean;
-    validationRules: ValidationRule[];
-    description?: string;
-}
-
-export interface ValidationResult {
-    isValid: boolean;
-    failures: Record<string, string[]>; // fieldName -> list of rule failures
-}
+export type { ValidationRule, SchemaField, ValidationResult };
 
 export class ValidationService {
     /**
@@ -155,15 +144,7 @@ export class ValidationService {
         records: Record<string, string>[],
         fieldsConfig: SchemaField[],
         duplicatesCount: number,
-    ): {
-        qualityScore: number;
-        metrics: {
-            completeness: number;
-            validity: number;
-            duplicates: number;
-            schemaMatch: number;
-        };
-    } {
+    ): QualityScoreResult {
         if (records.length === 0) {
             return {
                 qualityScore: 0,

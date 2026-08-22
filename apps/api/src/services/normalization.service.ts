@@ -1,10 +1,15 @@
+import type { NormalizationRuleType, SchemaField } from "@scrape-verse/types";
 import logger from "../shared/config/logger.config.js";
 
 export class NormalizationService {
     /**
      * Normalizes a field value based on configured normalization rules.
      */
-    public normalizeValue(value: string, ruleType: string, baseUrl?: string): string {
+    public normalizeValue(
+        value: string,
+        ruleType: NormalizationRuleType | string,
+        baseUrl?: string,
+    ): string {
         if (!value) return "";
 
         let cleanValue = value.trim();
@@ -66,7 +71,7 @@ export class NormalizationService {
      */
     public normalizeRecord(
         record: Record<string, string>,
-        fieldsConfig: any[],
+        fieldsConfig: SchemaField[],
         baseUrl?: string,
     ): Record<string, string> {
         const normalized: Record<string, string> = { ...record };

@@ -27,6 +27,11 @@ const normalizationRuleSchema = new mongoose.Schema(
 const fieldSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
+        type: {
+            type: String,
+            enum: ["string", "number", "boolean", "url", "date"],
+            default: "string",
+        },
         selector: { type: String, required: true },
         required: { type: Boolean, default: false },
         validationRules: [validationRuleSchema],

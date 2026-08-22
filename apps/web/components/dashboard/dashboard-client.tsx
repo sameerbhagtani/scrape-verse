@@ -3,18 +3,21 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent, type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+    type FormEvent,
+    type KeyboardEvent,
+    type PointerEvent,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+
+import type { ApiResponse, FieldPlan, ScraperPlanResponse } from "@scrape-verse/types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const ease = [0.19, 1, 0.22, 1] as const;
 const CHATS_WIDTH = 288;
-
-type FieldPlan = {
-    name: string;
-    type: string;
-    description: string;
-    required?: boolean;
-};
 
 type Message = {
     id: string;
@@ -31,11 +34,7 @@ type ChatSession = {
     messages: Message[];
 };
 
-type PlanResponse = {
-    data?: {
-        fields?: FieldPlan[];
-    };
-};
+type PlanResponse = ApiResponse<ScraperPlanResponse>;
 
 function timestamp() {
     return new Intl.DateTimeFormat("en", {
@@ -78,7 +77,9 @@ function useSlideDrawer(open: boolean, setOpen: (open: boolean) => void, width: 
         if (!draggingRef.current) return;
         draggingRef.current = false;
         const current = dragRef.current;
-        const shouldOpen = openRef.current ? Math.abs(current) < width * 0.32 : current > width * 0.32;
+        const shouldOpen = openRef.current
+            ? Math.abs(current) < width * 0.32
+            : current > width * 0.32;
         setOpen(shouldOpen);
         setDrag(0);
         dragRef.current = 0;
@@ -122,7 +123,11 @@ export function DashboardClient() {
         setInstruction("");
     }
 
-    function patchActive(chatId: string, updater: (messages: Message[]) => Message[], title?: string) {
+    function patchActive(
+        chatId: string,
+        updater: (messages: Message[]) => Message[],
+        title?: string,
+    ) {
         setChats((current) => {
             const exists = current.some((chat) => chat.id === chatId);
             if (!exists) {
@@ -383,7 +388,9 @@ function Sidebar({
                 style={{
                     width: CHATS_WIDTH,
                     transform: `translateX(${x}px)`,
-                    transition: isDragging ? "none" : "transform 280ms cubic-bezier(0.19, 1, 0.22, 1)",
+                    transition: isDragging
+                        ? "none"
+                        : "transform 280ms cubic-bezier(0.19, 1, 0.22, 1)",
                 }}
                 className={`glass-panel fixed top-16 bottom-0 left-0 z-50 flex h-auto min-h-0 flex-col overflow-hidden border-r text-white ${
                     open ? "" : "pointer-events-none"
@@ -588,8 +595,8 @@ function EmptyState() {
                 What should we scrape?
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-white/85 [text-shadow:0_1px_16px_rgba(0,0,0,0.8)] sm:text-base">
-                Describe a target and the data you need. The planner response comes from the live API
-                only.
+                Describe a target and the data you need. The planner response comes from the live
+                API only.
             </p>
         </div>
     );
@@ -691,10 +698,7 @@ function Composer({
 }) {
     return (
         <div className="shrink-0 px-4 pb-5 pt-3 sm:px-8">
-            <form
-                onSubmit={onSubmit}
-                className="glass-panel relative rounded-xl border px-3 py-2"
-            >
+            <form onSubmit={onSubmit} className="glass-panel relative rounded-xl border px-3 py-2">
                 <textarea
                     value={value}
                     onChange={(event) => onChange(event.target.value)}

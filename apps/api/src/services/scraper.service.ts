@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { ScraperRunResult, ScraperStatus, SchemaField } from "@scrape-verse/types";
 import Scraper from "../shared/models/scraper.model.js";
 import ScrapedData from "../shared/models/scrapedData.model.js";
 import ScraperLog from "../shared/models/scraperLog.model.js";
@@ -123,7 +124,11 @@ export class ScraperService {
         // 4. Data Normalization / Cleaning
         logger.info(`[Normalization] Cleaning ${rawData.length} records...`);
         const normalizedData = rawData.map((record) =>
-            normalizationService.normalizeRecord(record, scraper.fields, scraper.targetUrl),
+            normalizationService.normalizeRecord(
+                record,
+                scraper.fields as any as SchemaField[],
+                scraper.targetUrl,
+            ),
         );
 
         // 5. Duplicate Detection
@@ -307,7 +312,7 @@ export class ScraperService {
                             const testNormalized = testItems.map((item) =>
                                 normalizationService.normalizeRecord(
                                     item,
-                                    scraper.fields,
+                                    scraper.fields as any as SchemaField[],
                                     scraper.targetUrl,
                                 ),
                             );
@@ -383,7 +388,11 @@ export class ScraperService {
                     selectorsUpdate,
                 );
                 const healedNormalized = healedItems.map((item) =>
-                    normalizationService.normalizeRecord(item, scraper.fields, scraper.targetUrl),
+                    normalizationService.normalizeRecord(
+                        item,
+                        scraper.fields as any as SchemaField[],
+                        scraper.targetUrl,
+                    ),
                 );
                 const healedDedup = validationService.deduplicateRecords(
                     healedNormalized,

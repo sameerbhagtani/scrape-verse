@@ -8,7 +8,7 @@
         "dev": "tsx watch server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
-        "test": "jest",
+        "test": "NODE_OPTIONS=--experimental-vm-modules jest",
         "typecheck": "tsc --noEmit",
         "clean": "rimraf dist node_modules .turbo"
     },
