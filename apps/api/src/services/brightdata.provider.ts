@@ -28,7 +28,9 @@ export class BrightDataProvider implements ScraperProvider {
     /**
      * Fetches the page content via Bright Data Web Unlocker Proxy, falling back to direct fetch.
      */
-    public async fetchHtml(url: string): Promise<{ html: string; methodUsed: "proxy" | "direct" }> {
+    public async fetchHtml(
+        url: string,
+    ): Promise<{ html: string; methodUsed: "proxy" | "direct" | "api" }> {
         const proxyUrl = this.getProxyUrl();
 
         const headers: Record<string, string> = {
@@ -46,7 +48,7 @@ export class BrightDataProvider implements ScraperProvider {
             "Upgrade-Insecure-Requests": "1",
         };
 
-        // Strategy 1: Route through Bright Data Web Unlocker Proxy
+        // Strategy 1: Route through Bright Data Web Unlocker Proxy (if proxy credentials exist)
         if (proxyUrl) {
             try {
                 logger.info(`[Bright Data] Routing fetch through Web Unlocker proxy for: ${url}`);
@@ -70,12 +72,44 @@ export class BrightDataProvider implements ScraperProvider {
                 return { html, methodUsed: "proxy" };
             } catch (proxyError) {
                 logger.warn(
-                    `[Bright Data] Proxy request failed (${(proxyError as Error).message}). Falling back to direct browser fetch...`,
+                    `[Bright Data] Proxy request failed (${(proxyError as Error).message}). Falling back...`,
                 );
             }
         }
 
-        // Strategy 2: Direct browser-emulated fetch fallback
+        // Strategy 2: Bright Data Web Unlocker HTTP API (via API Key & Free Credits)
+        if (env.BRIGHT_DATA_API_KEY && env.BRIGHT_DATA_API_KEY.trim()) {
+            try {
+                const zone = env.BRIGHT_DATA_ZONE || "web_unlocker";
+                logger.info(`[Bright Data API] Requesting Web Unlocker API (zone: ${zone}) for: ${url}`);
+                const response = await fetch("https://api.brightdata.com/request", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${env.BRIGHT_DATA_API_KEY.trim()}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        zone,
+                        url,
+                        format: "raw",
+                    }),
+                    signal: AbortSignal.timeout(60000),
+                });
+
+                if (response.ok) {
+                    const html = await response.text();
+                    logger.info(`[Bright Data API] Successfully unlocked ${html.length} bytes for: ${url}`);
+                    return { html, methodUsed: "api" };
+                } else {
+                    const errBody = await response.text().catch(() => "");
+                    logger.warn(`[Bright Data API] API returned HTTP ${response.status}: ${errBody || response.statusText}`);
+                }
+            } catch (apiErr) {
+                logger.warn(`[Bright Data API] API request failed: ${(apiErr as Error).message}`);
+            }
+        }
+
+        // Strategy 3: Direct browser-emulated fetch fallback
         logger.info(`[Direct Fetch] Fetching target URL directly: ${url}`);
         const response = await fetch(url, {
             headers,
