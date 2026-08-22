@@ -332,6 +332,7 @@ export function DashboardClient() {
             if (createData.data) {
                 setActiveScraper(createData.data);
                 setSavedScrapers((prev) => [createData.data!, ...prev]);
+                setActionsOpen(false);
                 patchActive(activeId || "default", (current) => [
                     ...current,
                     {
@@ -532,7 +533,10 @@ export function DashboardClient() {
                                         <ChatMessage
                                             key={message.id}
                                             message={message}
+                                            isRunning={isRunning}
                                             onDeployClick={() => setActionsOpen(true)}
+                                            onRunClick={() => void triggerRun()}
+                                            onOpenResults={() => setResultsOpen(true)}
                                         />
                                     ))}
                                 </AnimatePresence>
@@ -1640,7 +1644,19 @@ function EmptyState({ onSelectPreset }: { onSelectPreset: (preset: string) => vo
     );
 }
 
-function ChatMessage({ message, onDeployClick }: { message: Message; onDeployClick: () => void }) {
+function ChatMessage({
+    message,
+    isRunning,
+    onDeployClick,
+    onRunClick,
+    onOpenResults,
+}: {
+    message: Message;
+    isRunning?: boolean;
+    onDeployClick: () => void;
+    onRunClick: () => void;
+    onOpenResults: () => void;
+}) {
     const isUser = message.role === "user";
 
     return (
@@ -1663,6 +1679,47 @@ function ChatMessage({ message, onDeployClick }: { message: Message; onDeployCli
                         <p>{message.content}</p>
                         {message.fields?.length ? (
                             <SchemaCard fields={message.fields} onDeployClick={onDeployClick} />
+                        ) : null}
+
+                        {message.content.includes("deployed successfully") ? (
+                            <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={onRunClick}
+                                    disabled={isRunning}
+                                    className="bg-flare text-white px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-flare/90 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md"
+                                >
+                                    <PlayIcon />
+                                    <span>{isRunning ? "Extracting..." : "⚡ Execute Live Scrape"}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onDeployClick}
+                                    className="glass-chip px-3 py-1.5 rounded-lg text-xs text-white/80 hover:bg-white/20 transition-all cursor-pointer"
+                                >
+                                    Configure Controls
+                                </button>
+                            </div>
+                        ) : null}
+
+                        {message.content.includes("execution completed") ? (
+                            <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={onOpenResults}
+                                    className="bg-flare text-white px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-flare/90 transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                                >
+                                    <span>📊 View Scraped Data & Quality</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onRunClick}
+                                    disabled={isRunning}
+                                    className="glass-chip px-3 py-1.5 rounded-lg text-xs text-white/80 hover:bg-white/20 transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                    🔄 Re-Run Scrape
+                                </button>
+                            </div>
                         ) : null}
                     </div>
                 </>
