@@ -1,28 +1,112 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { Suspense, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { GoogleSignInButton } from "~/components/auth/google-sign-in-button";
+import { useAuth } from "~/providers/auth-provider";
 
-/**
- * Login Page
- *
- * Layout:
- * - Full-screen video background (native loop, seamless)
- * - Left side: "Control your identity" in a redistributable brush font
- * - Right side: Basic login card (dark glass, pinned to edge)
- */
-export default function LoginPage() {
+function LoginContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { user, login, signup, forgotPassword, isAuthenticated } = useAuth();
+
+    const [mode, setMode] = useState<"signin" | "signup">("signin");
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+    // Forgot password state
+    const [forgotOpen, setForgotOpen] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [forgotSubmitting, setForgotSubmitting] = useState(false);
+    const [forgotResult, setForgotResult] = useState<{ success: boolean; message: string } | null>(
+        null,
+    );
+
+    // Check if Google sign-in failed via callback
+    useEffect(() => {
+        if (searchParams.get("googleError")) {
+            setErrorMsg("Google sign-in could not be completed. Please try again.");
+        }
+    }, [searchParams]);
+
+    // Redirect to dashboard if authenticated
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            router.replace("/dashboard");
+        }
+    }, [isAuthenticated, user, router]);
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setErrorMsg(null);
+        setSuccessMsg(null);
+        setSubmitting(true);
+
+        try {
+            if (mode === "signin") {
+                const res = await login(email, password);
+                if (res.success) {
+                    router.push("/dashboard");
+                } else {
+                    setErrorMsg(res.error || "Invalid email or password");
+                }
+            } else {
+                if (!name.trim()) {
+                    setErrorMsg("Please enter your name");
+                    setSubmitting(false);
+                    return;
+                }
+                const res = await signup(name.trim(), email, password);
+                if (res.success) {
+                    setSuccessMsg("Account created! Redirecting to ScrapeVerse...");
+                    setTimeout(() => {
+                        router.push("/dashboard");
+                    }, 800);
+                } else {
+                    setErrorMsg(res.error || "Registration failed");
+                }
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleForgotPassword(e: React.FormEvent) {
+        e.preventDefault();
+        if (!forgotEmail) return;
+        setForgotSubmitting(true);
+        setForgotResult(null);
+
+        try {
+            const res = await forgotPassword(forgotEmail);
+            if (res.success) {
+                setForgotResult({
+                    success: true,
+                    message: res.message || "Password reset link sent to your email.",
+                });
+            } else {
+                setForgotResult({
+                    success: false,
+                    message: res.error || "Failed to send reset link.",
+                });
+            }
+        } finally {
+            setForgotSubmitting(false);
+        }
+    }
 
     return (
         <main className="relative min-h-screen w-full overflow-hidden bg-void">
             {/* ═══════════════════════════════════════════════
-             *  VIDEO BACKGROUND — Seamless Infinite Ping-Pong Loop
+             *  VIDEO BACKGROUND — Seamless Infinite Loop
              * ═══════════════════════════════════════════════ */}
             <div className="absolute inset-0 z-0">
                 <video
@@ -35,14 +119,13 @@ export default function LoginPage() {
                     className="absolute inset-0 h-full w-full object-cover"
                 />
 
-                {/* Cinematic overlays */}
                 <div className="absolute inset-0 bg-void/50 pointer-events-none" />
                 <div className="absolute inset-0 bg-linear-to-r from-void/85 via-void/30 to-void/70 pointer-events-none" />
                 <div className="absolute inset-0 bg-linear-to-t from-void/60 via-transparent to-void/40 pointer-events-none" />
             </div>
 
             {/* ═══════════════════════════════════════════════
-             *  CONTENT — Split Layout (card pushed to far right)
+             *  CONTENT — Split Layout
              * ═══════════════════════════════════════════════ */}
             <div className="relative z-10 flex min-h-screen w-full flex-col lg:flex-row items-center lg:items-center justify-between gap-8 lg:gap-12 px-6 md:px-12 lg:pl-16 lg:pr-12 xl:pl-20 xl:pr-16 py-12">
                 {/* ─── LEFT SIDE: Spider-Man Branding ─── */}
@@ -52,7 +135,6 @@ export default function LoginPage() {
                     transition={{ duration: 1, ease: [0.19, 1, 0.22, 1] }}
                     className="flex max-w-170 flex-col items-start lg:flex-1"
                 >
-                    {/* ScrapVerse logo */}
                     <Link href="/" className="flex items-center gap-2 mb-6 group">
                         <span className="inline-block w-3 h-3 bg-flare rounded-xs animate-pulse" />
                         <span className="font-extrabold tracking-tighter text-xl lg:text-2xl leading-none uppercase font-mono text-off-white">
@@ -60,7 +142,6 @@ export default function LoginPage() {
                         </span>
                     </Link>
 
-                    {/* Hero display text */}
                     <h1 className="font-brush text-7xl leading-[0.88] text-off-white mb-6 select-none drop-shadow-2xl sm:text-8xl md:text-9xl lg:text-[8.5vw] xl:text-[8.5vw]">
                         Control
                         <br />
@@ -75,14 +156,13 @@ export default function LoginPage() {
                         {"// SELF-HEALING SCRAPERS. BRIGHT DATA POWERED."}
                     </p>
 
-                    {/* HUD decorative element */}
                     <div className="mt-6 flex items-center gap-3 text-[10px] font-mono uppercase tracking-widest text-off-white/40">
                         <span className="inline-block h-2 w-2 rounded-full bg-flare animate-ping" />
                         NODE: EARTH-616 // MULTIVERSE ACCESS PROTOCOL
                     </div>
                 </motion.div>
 
-                {/* ─── RIGHT SIDE: Login Card (Shifted to Far Right) ─── */}
+                {/* ─── RIGHT SIDE: Auth Card ─── */}
                 <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -90,28 +170,87 @@ export default function LoginPage() {
                     className="w-full max-w-100 lg:ml-auto lg:max-w-105 lg:shrink-0"
                 >
                     <div className="bg-void/80 backdrop-blur-md border border-off-white/10 p-8 md:p-10 shadow-2xl">
-                        {/* Card header */}
-                        <div className="mb-8">
-                            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-off-white mb-2">
+                        {/* Tab Switcher */}
+                        <div className="flex border-b border-off-white/10 mb-6 font-mono text-xs">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMode("signin");
+                                    setErrorMsg(null);
+                                    setSuccessMsg(null);
+                                }}
+                                className={`flex-1 pb-3 font-bold uppercase tracking-wider transition-colors ${
+                                    mode === "signin"
+                                        ? "border-b-2 border-flare text-off-white"
+                                        : "text-off-white/40 hover:text-off-white/70"
+                                }`}
+                            >
                                 Sign In
-                            </h2>
-                            <p className="text-xs font-mono uppercase tracking-wider text-off-white/50">
-                                {"// SCRAPE-VERSE IDENTITY VERIFICATION"}
-                            </p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMode("signup");
+                                    setErrorMsg(null);
+                                    setSuccessMsg(null);
+                                }}
+                                className={`flex-1 pb-3 font-bold uppercase tracking-wider transition-colors ${
+                                    mode === "signup"
+                                        ? "border-b-2 border-flare text-off-white"
+                                        : "text-off-white/40 hover:text-off-white/70"
+                                }`}
+                            >
+                                Create Account
+                            </button>
                         </div>
 
-                        {/* Login form */}
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                // TODO: actual auth
-                            }}
-                            className="flex flex-col gap-5"
-                        >
+                        {/* Error / Success Alerts */}
+                        <AnimatePresence>
+                            {errorMsg ? (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0 }}
+                                    className="mb-4 bg-rose-500/15 border border-rose-500/40 p-3 text-xs font-mono text-rose-300 rounded"
+                                >
+                                    ⚠ {errorMsg}
+                                </motion.div>
+                            ) : null}
+
+                            {successMsg ? (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0 }}
+                                    className="mb-4 bg-emerald-500/15 border border-emerald-500/40 p-3 text-xs font-mono text-emerald-300 rounded"
+                                >
+                                    ✓ {successMsg}
+                                </motion.div>
+                            ) : null}
+                        </AnimatePresence>
+
+                        {/* Auth Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                            {mode === "signup" ? (
+                                <div>
+                                    <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-off-white/60 mb-2">
+                                        <span className="font-light mr-1">/</span> Full Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="Miles Morales"
+                                        required
+                                        className="w-full bg-off-white/5 border border-off-white/15 text-off-white placeholder-off-white/30 px-4 py-3 text-sm font-mono outline-none focus:border-flare/60 transition-colors duration-300"
+                                    />
+                                </div>
+                            ) : null}
+
                             {/* Email field */}
                             <div>
                                 <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-off-white/60 mb-2">
-                                    <span className="font-light mr-1">/</span> Email or Username
+                                    <span className="font-light mr-1">/</span> Email Address
                                 </label>
                                 <input
                                     type="email"
@@ -135,6 +274,7 @@ export default function LoginPage() {
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••••"
                                         required
+                                        minLength={6}
                                         className="w-full bg-off-white/5 border border-off-white/15 text-off-white placeholder-off-white/30 px-4 py-3 text-sm font-mono outline-none focus:border-flare/60 transition-colors duration-300 pr-12"
                                     />
                                     <button
@@ -147,29 +287,40 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            {/* Remember + Forgot */}
-                            <div className="flex items-center justify-between text-xs font-mono">
-                                <label className="flex items-center gap-2 cursor-pointer text-off-white/60 hover:text-off-white transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        className="w-3.5 h-3.5 accent-flare cursor-pointer"
-                                    />
-                                    Remember me
-                                </label>
-                                <a
-                                    href="#"
-                                    className="text-flare/80 hover:text-flare transition-colors uppercase tracking-wider"
-                                >
-                                    Forgot?
-                                </a>
-                            </div>
+                            {/* Forgot Password trigger */}
+                            {mode === "signin" ? (
+                                <div className="flex items-center justify-between text-xs font-mono">
+                                    <label className="flex items-center gap-2 cursor-pointer text-off-white/60 hover:text-off-white transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            defaultChecked
+                                            className="w-3.5 h-3.5 accent-flare cursor-pointer"
+                                        />
+                                        Remember session
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setForgotOpen(true)}
+                                        className="text-flare/80 hover:text-flare transition-colors uppercase tracking-wider cursor-pointer"
+                                    >
+                                        Forgot?
+                                    </button>
+                                </div>
+                            ) : null}
 
-                            {/* Submit */}
+                            {/* Submit Button */}
                             <button
                                 type="submit"
-                                className="w-full bg-flare text-off-white py-3.5 text-sm font-black uppercase tracking-wider hover:bg-flare/90 transition-all duration-300 cursor-pointer flex items-center justify-center gap-3 group mt-2"
+                                disabled={submitting}
+                                className="w-full bg-flare text-off-white py-3.5 text-sm font-black uppercase tracking-wider hover:bg-flare/90 transition-all duration-300 cursor-pointer flex items-center justify-center gap-3 group mt-2 disabled:opacity-50"
                             >
-                                <span>ACCESS SCRAPE-VERSE</span>
+                                <span>
+                                    {submitting
+                                        ? "VERIFYING IDENTITY..."
+                                        : mode === "signin"
+                                          ? "ACCESS SCRAPE-VERSE"
+                                          : "INITIALIZE IDENTITY"}
+                                </span>
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     viewBox="0 0 22 19"
@@ -190,30 +341,132 @@ export default function LoginPage() {
                             <div className="flex-1 h-px bg-off-white/10" />
                         </div>
 
-                        {/* Google OAuth frontend. Backend exchanges the authorization code. */}
+                        {/* Google OAuth button */}
                         <GoogleSignInButton />
 
-                        {/* Sign up link */}
+                        {/* Switch Mode Prompt */}
                         <p className="mt-6 text-center text-xs font-mono text-off-white/40">
-                            New to ScrapVerse?{" "}
-                            <a
-                                href="#"
-                                className="text-flare hover:underline uppercase tracking-wider"
-                            >
-                                Create Account
-                            </a>
+                            {mode === "signin" ? (
+                                <>
+                                    New to ScrapVerse?{" "}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setMode("signup");
+                                            setErrorMsg(null);
+                                            setSuccessMsg(null);
+                                        }}
+                                        className="text-flare hover:underline uppercase tracking-wider cursor-pointer"
+                                    >
+                                        Create Account
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    Already have credentials?{" "}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setMode("signin");
+                                            setErrorMsg(null);
+                                            setSuccessMsg(null);
+                                        }}
+                                        className="text-flare hover:underline uppercase tracking-wider cursor-pointer"
+                                    >
+                                        Sign In
+                                    </button>
+                                </>
+                            )}
                         </p>
                     </div>
                 </motion.div>
             </div>
 
             {/* ═══════════════════════════════════════════════
-             *  Bottom HUD Bar
+             *  Forgot Password Modal
              * ═══════════════════════════════════════════════ */}
+            <AnimatePresence>
+                {forgotOpen ? (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-void/80 backdrop-blur-md"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0.95 }}
+                            className="w-full max-w-md bg-void border border-off-white/15 p-6 md:p-8 text-off-white space-y-4"
+                        >
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-lg font-black uppercase font-mono">
+                                    Reset Password
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setForgotOpen(false);
+                                        setForgotResult(null);
+                                    }}
+                                    className="text-off-white/50 hover:text-off-white text-lg cursor-pointer"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <p className="text-xs font-mono text-off-white/60">
+                                Enter your account email to receive a password reset token.
+                            </p>
+
+                            {forgotResult ? (
+                                <div
+                                    className={`p-3 rounded text-xs font-mono ${
+                                        forgotResult.success
+                                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                            : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                    }`}
+                                >
+                                    {forgotResult.message}
+                                </div>
+                            ) : null}
+
+                            <form onSubmit={handleForgotPassword} className="space-y-4">
+                                <input
+                                    type="email"
+                                    value={forgotEmail}
+                                    onChange={(e) => setForgotEmail(e.target.value)}
+                                    placeholder="your-email@example.com"
+                                    required
+                                    className="w-full bg-off-white/5 border border-off-white/15 px-3 py-2 text-sm font-mono text-off-white outline-none focus:border-flare/60"
+                                />
+
+                                <button
+                                    type="submit"
+                                    disabled={forgotSubmitting}
+                                    className="w-full bg-flare text-off-white py-2.5 text-xs font-bold uppercase tracking-wider hover:bg-flare/90 transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                    {forgotSubmitting ? "Sending..." : "Send Reset Link"}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                ) : null}
+            </AnimatePresence>
+
+            {/* Bottom HUD Bar */}
             <div className="absolute bottom-4 left-6 right-6 z-10 flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-off-white/30">
                 <span>© SCRAPVERSE 2026 // INTO THE SCRAPE-VERSE</span>
                 <span className="hidden md:inline">BRIGHT DATA × WEMAKEDEVS HACKATHON</span>
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen w-full bg-void" />}>
+            <LoginContent />
+        </Suspense>
     );
 }

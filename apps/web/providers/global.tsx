@@ -6,6 +6,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { usePathname } from "next/navigation";
 
+import { AuthProvider } from "./auth-provider";
+
 gsap.registerPlugin(ScrollTrigger);
 
 export function GlobalProviders({ children }: { children: React.ReactNode }) {
@@ -40,5 +42,5 @@ export function GlobalProviders({ children }: { children: React.ReactNode }) {
         };
     }, [pathname]);
 
-    return <>{children}</>;
+    return <AuthProvider>{children}</AuthProvider>;
 }

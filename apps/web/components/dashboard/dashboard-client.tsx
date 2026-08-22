@@ -23,7 +23,9 @@ import type {
     ScraperPlanResponse,
     ScraperRunResult,
     ScraperStatus,
+    User,
 } from "@scrape-verse/types";
+import { useAuth } from "~/providers/auth-provider";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
 const ease = [0.19, 1, 0.22, 1] as const;
@@ -101,6 +103,7 @@ function useSlideDrawer(open: boolean, setOpen: (open: boolean) => void, width: 
 }
 
 export function DashboardClient() {
+    const { user, logout } = useAuth();
     const [chats, setChats] = useState<ChatSession[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [instruction, setInstruction] = useState("");
@@ -530,6 +533,8 @@ export function DashboardClient() {
                 savedScrapers={savedScrapers}
                 activeScraper={activeScraper}
                 fieldCount={latestFields.length}
+                user={user}
+                onLogout={logout}
                 onOpen={() => setSidebarOpen(true)}
                 onClose={() => setSidebarOpen(false)}
                 onNewChat={startNewChat}
@@ -642,6 +647,8 @@ function Sidebar({
     savedScrapers,
     activeScraper,
     fieldCount,
+    user,
+    onLogout,
     onOpen,
     onClose,
     onNewChat,
@@ -655,6 +662,8 @@ function Sidebar({
     savedScrapers: ScraperConfig[];
     activeScraper: ScraperConfig | null;
     fieldCount: number;
+    user: User | null;
+    onLogout: () => void;
     onOpen: () => void;
     onClose: () => void;
     onNewChat: () => void;
@@ -830,15 +839,33 @@ function Sidebar({
 
                 <div className="flex items-center gap-3 border-t border-white/15 px-3 py-3">
                     <div className="grid size-8 place-items-center rounded-full bg-flare text-[10px] font-semibold text-white">
-                        SV
+                        {user?.name
+                            ? user.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase()
+                            : "SV"}
                     </div>
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs text-white">ScrapeVerse Operator</p>
-                        <p className="text-[10px] text-white/50">Connected</p>
+                        <p className="truncate text-xs text-white">
+                            {user?.name || "ScrapeVerse Operator"}
+                        </p>
+                        <p className="truncate text-[10px] text-white/50">
+                            {user?.email || "Connected"}
+                        </p>
                     </div>
-                    <Link href="/login" className="text-[10px] text-white/50 hover:text-white">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            void onLogout();
+                            window.location.href = "/login";
+                        }}
+                        className="text-[10px] text-white/50 hover:text-white cursor-pointer"
+                    >
                         Exit
-                    </Link>
+                    </button>
                 </div>
 
                 <div
