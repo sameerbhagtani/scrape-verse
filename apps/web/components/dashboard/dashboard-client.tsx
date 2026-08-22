@@ -1695,7 +1695,9 @@ function ChatMessage({
                                     className="bg-flare text-white px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-flare/90 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md"
                                 >
                                     <PlayIcon />
-                                    <span>{isRunning ? "Extracting..." : "⚡ Execute Live Scrape"}</span>
+                                    <span>
+                                        {isRunning ? "Extracting..." : "⚡ Execute Live Scrape"}
+                                    </span>
                                 </button>
                                 <button
                                     type="button"

@@ -6,5 +6,5 @@ export interface ScraperProvider {
         url: string,
         selectors: Record<string, string>,
         containerSelector?: string,
-    ): Promise<{ html: string; rawData: Record<string, string>[] }>;
+    ): Promise<{ html: string; rawData: Record<string, string>[]; methodUsed?: string }>;
 }

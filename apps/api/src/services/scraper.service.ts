@@ -42,6 +42,7 @@ export class ScraperService {
 
         let html = htmlOverride || "";
         let rawData: Record<string, string>[] = [];
+        let fetchStrategy = htmlOverride ? "override" : "direct";
 
         // 3. Fetch Website Content
         if (!htmlOverride) {
@@ -54,6 +55,7 @@ export class ScraperService {
                 );
                 html = result.html;
                 rawData = result.rawData;
+                fetchStrategy = result.methodUsed || "direct";
             } catch (err) {
                 logger.error(
                     `[Fetch Failed] Scraper ID: ${scraperId}. Error: ${(err as Error).message}`,

@@ -29,6 +29,14 @@ const envSchema = z.object({
     GOOGLE_CLIENT_SECRET: z.string().default(envConstants.GOOGLE_CLIENT_SECRET),
     GOOGLE_REDIRECT_URI: z.string().url().default(envConstants.GOOGLE_REDIRECT_URI),
     BRIGHT_DATA_API_KEY: z.string().optional().default(envConstants.BRIGHT_DATA_API_KEY),
+    BRIGHT_DATA_PROXY_URL: z.string().optional().default(envConstants.BRIGHT_DATA_PROXY_URL),
+    BRIGHT_DATA_ZONE: z.string().default(envConstants.BRIGHT_DATA_ZONE),
+    BRIGHT_DATA_CUSTOMER_ID: z.string().optional().default(envConstants.BRIGHT_DATA_CUSTOMER_ID),
+    BRIGHT_DATA_ZONE_PASSWORD: z
+        .string()
+        .optional()
+        .default(envConstants.BRIGHT_DATA_ZONE_PASSWORD),
+    BRIGHT_DATA_COUNTRY: z.string().optional().default(envConstants.BRIGHT_DATA_COUNTRY),
     GEMINI_API_KEY: z.string().optional().default(envConstants.GEMINI_API_KEY),
     MISTRAL_API_KEY: z.string().optional().default(envConstants.MISTRAL_API_KEY),
     FRONTEND_URL: z.string().url().default(envConstants.FRONTEND_URL),
