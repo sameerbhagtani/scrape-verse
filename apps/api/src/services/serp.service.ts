@@ -54,6 +54,7 @@ export class SerpService {
                         zone,
                         url: targetSearchUrl,
                         format: "json",
+                        data_format: "parsed",
                     }),
                     signal: AbortSignal.timeout(45000),
                 });
@@ -152,11 +153,20 @@ export class SerpService {
     private parseBrightDataSerpJson(data: any): SerpResultItem[] {
         if (!data) return [];
 
+        let payload = data;
+        if (data.body) {
+            try {
+                payload = typeof data.body === "string" ? JSON.parse(data.body) : data.body;
+            } catch {
+                payload = data;
+            }
+        }
+
         const results: SerpResultItem[] = [];
 
         // 1. Organic array from Google / Bright Data SERP response
         const items =
-            data.organic || data.general?.results || data.results || data.organic_results || [];
+            payload.organic || payload.general?.results || payload.results || payload.organic_results || [];
 
         if (Array.isArray(items)) {
             items.forEach((item: any, index: number) => {
