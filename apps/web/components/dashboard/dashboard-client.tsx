@@ -24,6 +24,8 @@ import type {
     ScraperPlanResponse,
     ScraperRunResult,
     ScraperStatus,
+    SerpResultItem,
+    SerpSearchResponse,
     User,
 } from "@scrape-verse/types";
 import { useAuth } from "~/providers/auth-provider";
@@ -40,6 +42,8 @@ type Message = {
     fields?: FieldPlan[];
     status?: "success" | "error";
     targetUrl?: string;
+    serpResults?: SerpResultItem[];
+    serpQuery?: string;
 };
 
 type ChatSession = {
@@ -232,6 +236,73 @@ export function DashboardClient() {
         patchActive(chatId, (current) => [...current, userMessage], request.slice(0, 38));
         setInstruction("");
         setIsPlanning(true);
+
+        const isSearchCommand =
+            request.toLowerCase().startsWith("/search ") ||
+            request.toLowerCase().startsWith("search google for ") ||
+            request.toLowerCase().startsWith("search for ") ||
+            (request.toLowerCase().startsWith("search ") && !request.includes("http"));
+
+        if (isSearchCommand) {
+            const searchQuery = request
+                .replace(/^\/search\s+/i, "")
+                .replace(/^search google for\s+/i, "")
+                .replace(/^search for\s+/i, "")
+                .replace(/^search\s+/i, "")
+                .trim();
+
+            try {
+                const serpRes = await fetch(`${API_URL}/serp/search`, {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ query: searchQuery }),
+                });
+
+                if (!serpRes.ok) throw new Error("Search request failed");
+                const serpData = (await serpRes.json()) as ApiResponse<SerpSearchResponse>;
+                const results = serpData.data?.results ?? [];
+
+                if (results.length > 0) {
+                    patchActive(chatId, (current) => [
+                        ...current,
+                        {
+                            id: crypto.randomUUID(),
+                            role: "agent",
+                            timestamp: timestamp(),
+                            status: "success",
+                            content: `I searched the web for "${searchQuery}" and found ${results.length} relevant results:`,
+                            serpResults: results,
+                            serpQuery: searchQuery,
+                        },
+                    ]);
+                } else {
+                    patchActive(chatId, (current) => [
+                        ...current,
+                        {
+                            id: crypto.randomUUID(),
+                            role: "agent",
+                            timestamp: timestamp(),
+                            status: "error",
+                            content: `No web results found for "${searchQuery}".`,
+                        },
+                    ]);
+                }
+            } catch (err) {
+                patchActive(chatId, (current) => [
+                    ...current,
+                    {
+                        id: crypto.randomUUID(),
+                        role: "agent",
+                        timestamp: timestamp(),
+                        status: "error",
+                        content: `Web search failed: ${(err as Error).message}`,
+                    },
+                ]);
+            } finally {
+                setIsPlanning(false);
+            }
+            return;
+        }
 
         const urlMatch = request.match(/https?:\/\/[^\s]+/i);
         if (urlMatch && urlMatch[0]) {
@@ -542,6 +613,13 @@ export function DashboardClient() {
                                             onDeployClick={() => setActionsOpen(true)}
                                             onRunClick={() => void triggerRun()}
                                             onOpenResults={() => setResultsOpen(true)}
+                                            onPlanUrl={(url) => {
+                                                setTargetUrlInput(url);
+                                                setInstruction(
+                                                    `Scrape key data and items from ${url}`,
+                                                );
+                                                setActionsOpen(true);
+                                            }}
                                         />
                                     ))}
                                 </AnimatePresence>
@@ -1618,6 +1696,7 @@ function ResultsPanel({
 function EmptyState({ onSelectPreset }: { onSelectPreset: (preset: string) => void }) {
     const presets = [
         "Scrape books with title, price, stock availability, and rating from https://books.toscrape.com",
+        "search google for top programming bookstore websites",
         "Scrape e-commerce items with productName, price, customerRating, and productUrl",
         "Scrape news headlines with title, author, date, and articleLink",
     ];
@@ -1655,12 +1734,14 @@ function ChatMessage({
     onDeployClick,
     onRunClick,
     onOpenResults,
+    onPlanUrl,
 }: {
     message: Message;
     isRunning?: boolean;
     onDeployClick: () => void;
     onRunClick: () => void;
     onOpenResults: () => void;
+    onPlanUrl?: (url: string) => void;
 }) {
     const isUser = message.role === "user";
 
@@ -1684,6 +1765,14 @@ function ChatMessage({
                         <p>{message.content}</p>
                         {message.fields?.length ? (
                             <SchemaCard fields={message.fields} onDeployClick={onDeployClick} />
+                        ) : null}
+
+                        {message.serpResults?.length ? (
+                            <SerpCard
+                                results={message.serpResults}
+                                query={message.serpQuery}
+                                onPlanUrl={onPlanUrl}
+                            />
                         ) : null}
 
                         {message.content.includes("deployed successfully") ? (
@@ -1732,6 +1821,68 @@ function ChatMessage({
                 </>
             )}
         </motion.article>
+    );
+}
+
+function SerpCard({
+    results,
+    query,
+    onPlanUrl,
+}: {
+    results: SerpResultItem[];
+    query?: string;
+    onPlanUrl?: (url: string) => void;
+}) {
+    return (
+        <div className="glass-chip mt-3 overflow-hidden rounded-xl border border-white/15">
+            <div className="flex items-center justify-between bg-black/40 px-3.5 py-2.5 text-[11px] text-white/60">
+                <span className="flex items-center gap-1.5 font-medium text-white/80">
+                    <SearchIcon />
+                    <span>Search Results for &quot;{query || "Web"}&quot;</span>
+                </span>
+                <span className="rounded bg-flare/20 px-2 py-0.5 font-mono text-[9px] text-flare uppercase">
+                    {results.length} found
+                </span>
+            </div>
+            <div className="divide-y divide-white/10">
+                {results.slice(0, 5).map((res, i) => (
+                    <div key={i} className="p-3 hover:bg-white/5 transition-all space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                            <h4 className="text-xs font-semibold text-white leading-snug">
+                                {res.title}
+                            </h4>
+                            <span className="shrink-0 text-[9px] font-mono text-white/40">
+                                #{res.position || i + 1}
+                            </span>
+                        </div>
+                        {res.description ? (
+                            <p className="text-[11px] text-white/60 line-clamp-2 leading-relaxed">
+                                {res.description}
+                            </p>
+                        ) : null}
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                            <a
+                                href={res.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="truncate font-mono text-[10px] text-flare/90 hover:underline max-w-[60%]"
+                            >
+                                {res.url}
+                            </a>
+                            {onPlanUrl ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onPlanUrl(res.url)}
+                                    className="bg-white/10 hover:bg-flare hover:text-white text-white/90 text-[10px] font-semibold px-2.5 py-1 rounded transition-all cursor-pointer shrink-0"
+                                >
+                                    ⚡ Plan Scraper →
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 

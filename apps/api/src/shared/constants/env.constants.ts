@@ -11,6 +11,7 @@ const envConstants = {
     BRIGHT_DATA_API_KEY: "",
     BRIGHT_DATA_PROXY_URL: "",
     BRIGHT_DATA_ZONE: "web_unlocker",
+    BRIGHT_DATA_SERP_ZONE: "serp",
     BRIGHT_DATA_CUSTOMER_ID: "",
     BRIGHT_DATA_ZONE_PASSWORD: "",
     BRIGHT_DATA_COUNTRY: "",

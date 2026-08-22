@@ -31,6 +31,7 @@ const envSchema = z.object({
     BRIGHT_DATA_API_KEY: z.string().optional().default(envConstants.BRIGHT_DATA_API_KEY),
     BRIGHT_DATA_PROXY_URL: z.string().optional().default(envConstants.BRIGHT_DATA_PROXY_URL),
     BRIGHT_DATA_ZONE: z.string().default(envConstants.BRIGHT_DATA_ZONE),
+    BRIGHT_DATA_SERP_ZONE: z.string().default(envConstants.BRIGHT_DATA_SERP_ZONE),
     BRIGHT_DATA_CUSTOMER_ID: z.string().optional().default(envConstants.BRIGHT_DATA_CUSTOMER_ID),
     BRIGHT_DATA_ZONE_PASSWORD: z
         .string()

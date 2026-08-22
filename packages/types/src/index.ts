@@ -213,6 +213,30 @@ export interface SchemaGeneratorRequest {
     fields: FieldPlan[];
 }
 
+// ─── SERP Search Types ───
+
+export interface SerpResultItem {
+    title: string;
+    url: string;
+    description: string;
+    position: number;
+}
+
+export interface SerpSearchRequest {
+    query: string;
+    engine?: "google" | "bing" | "duckduckgo";
+    num?: number;
+    country?: string;
+}
+
+export interface SerpSearchResponse {
+    query: string;
+    engine: string;
+    results: SerpResultItem[];
+    totalResults: number;
+    source: "brightdata_serp_api" | "brightdata_serp_proxy" | "direct_search";
+}
+
 // ─── Authentication & User ───
 
 export type UserRole = "USER" | "ADMIN";

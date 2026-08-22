@@ -81,7 +81,9 @@ export class BrightDataProvider implements ScraperProvider {
         if (env.BRIGHT_DATA_API_KEY && env.BRIGHT_DATA_API_KEY.trim()) {
             try {
                 const zone = env.BRIGHT_DATA_ZONE || "web_unlocker";
-                logger.info(`[Bright Data API] Requesting Web Unlocker API (zone: ${zone}) for: ${url}`);
+                logger.info(
+                    `[Bright Data API] Requesting Web Unlocker API (zone: ${zone}) for: ${url}`,
+                );
                 const response = await fetch("https://api.brightdata.com/request", {
                     method: "POST",
                     headers: {
@@ -98,11 +100,15 @@ export class BrightDataProvider implements ScraperProvider {
 
                 if (response.ok) {
                     const html = await response.text();
-                    logger.info(`[Bright Data API] Successfully unlocked ${html.length} bytes for: ${url}`);
+                    logger.info(
+                        `[Bright Data API] Successfully unlocked ${html.length} bytes for: ${url}`,
+                    );
                     return { html, methodUsed: "api" };
                 } else {
                     const errBody = await response.text().catch(() => "");
-                    logger.warn(`[Bright Data API] API returned HTTP ${response.status}: ${errBody || response.statusText}`);
+                    logger.warn(
+                        `[Bright Data API] API returned HTTP ${response.status}: ${errBody || response.statusText}`,
+                    );
                 }
             } catch (apiErr) {
                 logger.warn(`[Bright Data API] API request failed: ${(apiErr as Error).message}`);
