@@ -16,6 +16,14 @@ import Created from "../../shared/responses/Created.response.js";
 
 class ScraperController {
     /**
+     * List all scraper configurations
+     */
+    public listScrapers = async (_req: Request, res: Response): Promise<void> => {
+        const scrapers = await Scraper.find().sort({ updatedAt: -1 });
+        Ok(res, "Scraper configurations retrieved successfully", scrapers);
+    };
+
+    /**
      * Create a new scraper configuration
      */
     public createScraper = async (req: Request, res: Response): Promise<void> => {
@@ -35,7 +43,7 @@ class ScraperController {
 
         const scraper = await Scraper.create({
             name,
-            collectorId,
+            collectorId: collectorId || `col_${Date.now()}`,
             targetUrl,
             itemContainerSelector: itemContainerSelector || "",
             fields,
@@ -109,6 +117,7 @@ class ScraperController {
             {
                 success: result.success,
                 scrapedItemsCount: result.scrapedItems.length,
+                scrapedItems: result.scrapedItems,
                 log: result.log,
                 scraper: {
                     id: result.scraper._id,
@@ -118,6 +127,29 @@ class ScraperController {
                 },
             },
         );
+    };
+
+    /**
+     * Retrieve persisted scraped data records for a scraper
+     */
+    public getData = async (req: Request, res: Response): Promise<void> => {
+        const id = req.params.id as string;
+        const scraper = await Scraper.findById(id);
+        if (!scraper) {
+            throw new NotFound(`Scraper with ID ${id} not found`);
+        }
+
+        const records = await ScrapedData.find({ scraperId: id })
+            .sort({ scrapedAt: -1 })
+            .limit(100);
+
+        Ok(res, "Scraped data retrieved successfully", {
+            scraperId: scraper._id,
+            scraperName: scraper.name,
+            totalItems: records.length,
+            records,
+            items: records.map((r) => r.data),
+        });
     };
 
     /**

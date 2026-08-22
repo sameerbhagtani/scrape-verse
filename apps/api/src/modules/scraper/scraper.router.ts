@@ -4,6 +4,9 @@ import ScraperController from "./scraper.controller.js";
 const router = express.Router();
 const scraperController = new ScraperController();
 
+// List all scrapers
+router.get("/", scraperController.listScrapers);
+
 // Create new scraper config
 router.post("/", scraperController.createScraper);
 
@@ -18,6 +21,9 @@ router.get("/:id", scraperController.getScraper);
 
 // Expose active selectors (supports mongo ID or collectorId for Scraper Studio callback/fetch)
 router.get("/:id/selectors", scraperController.getSelectors);
+
+// Get persisted scraped data
+router.get("/:id/data", scraperController.getData);
 
 // Trigger run
 router.post("/:id/run", scraperController.runScrape);
