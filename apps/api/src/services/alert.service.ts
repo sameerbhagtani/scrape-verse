@@ -29,12 +29,13 @@ ${JSON.stringify(details, null, 2)}
         // 1. Log alert internally
         logger.warn(`ALERT TRIGGERED: ${subject}\n${messageText}`);
 
-        // 2. Email alert (reuse existing SMTP configuration if enabled)
+        // 2. Email alert (reuse existing Brevo configuration if enabled)
         if (env.SEND_MAIL) {
             try {
                 // Ensure there is a recipient configured, fallback to sending user if SMTP_USER is blank
-                const recipient = env.SMTP_USER || "admin@example.com";
-                sendMail(recipient, subject, messageText);
+                const recipient = env.BREVO_SENDER_EMAIL || env.SMTP_USER || "admin@example.com";
+                const htmlContent = `<pre style="font-family: monospace; white-space: pre-wrap;">${messageText}</pre>`;
+                await sendMail(recipient, subject, htmlContent);
                 logger.info(`Email alert sent successfully to ${recipient}`);
             } catch (err) {
                 logger.error(`Failed to send email alert: ${(err as Error).message}`);

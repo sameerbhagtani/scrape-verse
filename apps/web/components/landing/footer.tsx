@@ -74,7 +74,7 @@ export function Footer() {
     useEffect(() => () => clearInterval(controlInterval.current), []);
 
     return (
-        <div className="sticky bottom-0 z-0 min-h-screen px-3 md:px-6 lg:px-[0.46vw] pt-8 lg:pt-[2.5vw] pb-4 text-off-white selection:bg-off-white selection:text-flare relative overflow-hidden flex flex-col justify-end gap-8 lg:gap-[4vw]">
+        <div className="bottom-0 z-0 min-h-screen px-3 md:px-6 lg:px-[0.46vw] pt-8 lg:pt-[2.5vw] pb-4 text-off-white selection:bg-off-white selection:text-flare relative overflow-hidden flex flex-col justify-end gap-8 lg:gap-[4vw]">
             {/* ═══════════════════════════════════════════════════════
              *  FULL SPIDER-MAN SKYLINE ARTWORK BACKGROUND
              *  Covers entire footer with red duotone blend

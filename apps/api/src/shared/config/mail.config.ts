@@ -1,15 +1,17 @@
-// importing modules
-import nodemailer from "nodemailer";
+// Brevo Mail Configuration
 import env from "./env.config.js";
 
-// creating a transporter for sending emails
-const transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(env.SMTP_PORT || 587),
-    auth: {
-        user: env.SMTP_USER || "",
-        pass: env.SMTP_PASS || "",
+export const brevoConfig = {
+    apiUrl: "https://api.brevo.com/v3/smtp/email",
+    get apiKey() {
+        return env.BREVO_API_KEY || env.SMTP_PASS || "";
     },
-});
+    get senderName() {
+        return env.BREVO_SENDER_NAME || "ScrapeVerse";
+    },
+    get senderEmail() {
+        return env.BREVO_SENDER_EMAIL || env.SMTP_USER || "noreply@example.com";
+    },
+};
 
-export default transporter;
+export default brevoConfig;

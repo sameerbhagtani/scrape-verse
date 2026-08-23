@@ -14,6 +14,11 @@ const envSchema = z.object({
     CORS_ORIGIN: z.string().default(envConstants.CORS_ORIGIN),
     ACCESS_TOKEN_SECRET: z.string().default(envConstants.ACCESS_TOKEN_SECRET),
     REFRESH_TOKEN_SECRET: z.string().default(envConstants.REFRESH_TOKEN_SECRET),
+    GEMINI_API_KEY: z.string().optional().default(envConstants.GEMINI_API_KEY),
+    MISTRAL_API_KEY: z.string().optional().default(envConstants.MISTRAL_API_KEY),
+    BREVO_API_KEY: z.string().optional().default(envConstants.BREVO_API_KEY),
+    BREVO_SENDER_NAME: z.string().default(envConstants.BREVO_SENDER_NAME),
+    BREVO_SENDER_EMAIL: z.string().default(envConstants.BREVO_SENDER_EMAIL),
     SMTP_HOST: z.string().default(envConstants.SMTP_HOST),
     SMTP_PORT: z.coerce.number().default(envConstants.SMTP_PORT),
     SMTP_USER: z.string().default(envConstants.SMTP_USER),
@@ -38,8 +43,6 @@ const envSchema = z.object({
         .optional()
         .default(envConstants.BRIGHT_DATA_ZONE_PASSWORD),
     BRIGHT_DATA_COUNTRY: z.string().optional().default(envConstants.BRIGHT_DATA_COUNTRY),
-    GEMINI_API_KEY: z.string().optional().default(envConstants.GEMINI_API_KEY),
-    MISTRAL_API_KEY: z.string().optional().default(envConstants.MISTRAL_API_KEY),
     FRONTEND_URL: z.string().url().default(envConstants.FRONTEND_URL),
 });
 

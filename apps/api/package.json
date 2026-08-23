@@ -16,6 +16,7 @@
         "@langchain/core": "^1.2.9",
         "@langchain/mistralai": "^1.2.0",
         "@scrape-verse/types": "workspace:*",
+        "axios": "^1.19.0",
         "bcryptjs": "^3.0.2",
         "cheerio": "^1.2.0",
         "compression": "^1.8.0",

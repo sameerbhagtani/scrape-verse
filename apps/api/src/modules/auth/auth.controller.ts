@@ -75,10 +75,10 @@ class AuthController {
             expiresAt: new Date(Date.now() + OTP_EXPIRY_TIME),
         });
 
-        sendMail(
+        await sendMail(
             user.email,
             "Verify your email",
-            `Your OTP is ${otp}. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.`,
+            `<p>Your OTP is <strong>${otp}</strong>. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.</p>`,
         );
 
         // returning otp verification response with access token
@@ -122,10 +122,10 @@ class AuthController {
                 value: otp,
                 expiresAt: new Date(Date.now() + OTP_EXPIRY_TIME),
             });
-            sendMail(
+            await sendMail(
                 user.email,
                 "Verify your email",
-                `Your OTP is ${otp}. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.`,
+                `<p>Your OTP is <strong>${otp}</strong>. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.</p>`,
             );
         }
 
@@ -379,10 +379,10 @@ class AuthController {
         });
 
         // sending the reset password token as a magic link to the email
-        sendMail(
+        await sendMail(
             email,
             "Your reset Password Link",
-            `Click the link and reset your password <a href="${env.FRONTEND_URL}/reset-password/${resetToken}">Reset Your Password</a>`,
+            `<p>Click the link below to reset your password:</p><p><a href="${env.FRONTEND_URL}/reset-password/${resetToken}">Reset Your Password</a></p>`,
         );
 
         // returning success response
@@ -484,10 +484,10 @@ class AuthController {
             expiresAt: new Date(Date.now() + OTP_EXPIRY_TIME),
         });
 
-        sendMail(
+        await sendMail(
             email,
             "Verify your email",
-            `Your OTP is ${otp}. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.`,
+            `<p>Your OTP is <strong>${otp}</strong>. It will expire in ${OTP_EXPIRY_TIME / 60000} minutes.</p>`,
         );
 
         return Ok(res, "Verification code sent to your email");
