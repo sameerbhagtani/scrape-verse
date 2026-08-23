@@ -66,7 +66,7 @@ export function Footer() {
     };
 
     const copyCli = () => {
-        navigator.clipboard.writeText("npx scrapverse@latest");
+        navigator.clipboard.writeText("npx SCRAPEVERSE@latest");
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -108,8 +108,8 @@ export function Footer() {
                         <span className="font-light mr-1">/</span> Reach Out
                     </span>
                     <div className="flex flex-col text-[24px] leading-[0.95] font-[470] tracking-[-0.01em] lg:text-[1.85185vw] lg:leading-[1.1] drop-shadow-lg">
-                        <UnderlineLink href="mailto:team@scrapverse.dev">
-                            team@scrapverse.dev
+                        <UnderlineLink href="mailto:team@scrapeverse.dev">
+                            team@scrapeverse.dev
                         </UnderlineLink>
                         <div className="flex mt-1">
                             /&nbsp;
@@ -122,7 +122,7 @@ export function Footer() {
                         onClick={copyCli}
                         className="mt-6 flex items-center justify-between bg-void/90 backdrop-blur-xs p-3 rounded-xs border border-off-white/30 cursor-pointer group hover:border-off-white transition-all font-mono text-xs max-w-[280px] shadow-xl"
                     >
-                        <code className="text-off-white font-bold">$ npx scrapverse@latest</code>
+                        <code className="text-off-white font-bold">$ npx scrapeverse@latest</code>
                         <span className="text-[10px] bg-off-white/20 text-off-white px-2 py-0.5 rounded-xs font-bold uppercase group-hover:bg-off-white/30 transition-colors">
                             {copied ? "COPIED!" : "COPY"}
                         </span>
@@ -180,8 +180,8 @@ export function Footer() {
                         <span className="font-light mr-1">/</span> Reach Out
                     </span>
                     <div className="flex flex-col text-xl leading-[1.1] font-[470] tracking-[-0.01em] mb-4">
-                        <UnderlineLink href="mailto:team@scrapverse.dev">
-                            team@scrapverse.dev
+                        <UnderlineLink href="mailto:team@scrapeverse.dev">
+                            team@scrapeverse.dev
                         </UnderlineLink>
                         <div className="flex mt-1">
                             /&nbsp;
@@ -193,7 +193,7 @@ export function Footer() {
                         onClick={copyCli}
                         className="mb-6 flex items-center justify-between bg-void/90 p-3 rounded-xs border border-off-white/30 cursor-pointer font-mono text-xs max-w-[280px]"
                     >
-                        <code className="text-off-white font-bold">$ npx scrapverse@latest</code>
+                        <code className="text-off-white font-bold">$ npx scrapeverse@latest</code>
                         <span className="text-[10px] bg-off-white/20 text-off-white px-2 py-0.5 rounded-xs font-bold uppercase">
                             {copied ? "COPIED!" : "COPY"}
                         </span>
@@ -272,7 +272,7 @@ export function Footer() {
                 <div className="col-span-5 col-start-6 flex justify-between text-[14px] leading-[0.85] font-[470] tracking-[-0.01em] uppercase max-lg:pt-6 max-lg:pb-2 lg:items-end lg:justify-end lg:text-[1.27315vw] drop-shadow-md">
                     <span className="inline lg:hidden">© 2026</span>
                     <span className="hidden lg:inline">
-                        © SCRAPVERSE // INTO THE SCRAPE-VERSE 2026 &nbsp;
+                        © SCRAPEVERSE // INTO THE SCRAPE-VERSE 2026 &nbsp;
                         <span className="font-light">/</span>
                         &nbsp;
                     </span>

@@ -158,7 +158,7 @@ export function Studio() {
                                 &ldquo;WITH GREAT DATA COMES ZERO MAINTENANCE.&rdquo;
                             </p>
                             <p className="pl-[15px] text-xs font-mono font-bold tracking-wider lg:pl-[0.87vw] lg:text-[0.69vw] text-flare">
-                                – SPIDER-MAN • SCRAPVERSE ARCHITECT
+                                – SPIDER-MAN • SCRAPEVERSE ARCHITECT
                             </p>
                         </div>
                     </div>

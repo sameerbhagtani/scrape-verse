@@ -73,7 +73,7 @@ export function Hero() {
                 {/* Bottom giant brand wordmark — single continuous text, no clipping */}
                 <div className="w-full select-none pointer-events-none overflow-visible">
                     <h1 className="text-off-white font-black tracking-[-0.05em] leading-[0.85] text-[11vw] lg:text-[12vw] uppercase">
-                        SCRAPVERSE
+                        SCRAPEVERSE
                         <sup className="text-xs md:text-lg lg:text-[1.2vw] font-mono tracking-normal align-super">
                             ®
                         </sup>

@@ -116,7 +116,7 @@ function VerifyContent() {
                     <Link href="/" className="flex items-center gap-2 mb-6 group">
                         <span className="inline-block w-3 h-3 bg-flare rounded-xs animate-pulse" />
                         <span className="font-extrabold tracking-tighter text-xl lg:text-2xl leading-none uppercase font-mono text-off-white">
-                            SCRAPVERSE<span className="text-flare text-xs">®</span>
+                            SCRAPEVERSE<span className="text-flare text-xs">®</span>
                         </span>
                     </Link>
 
@@ -198,7 +198,7 @@ function VerifyContent() {
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="miles@scrapverse.dev"
+                                        placeholder="miles@scrapeverse.dev"
                                         required
                                         className="w-full bg-off-white/5 border border-off-white/15 text-off-white placeholder-off-white/30 px-4 py-2.5 text-sm font-mono outline-none focus:border-flare/60 transition-colors"
                                     />
@@ -276,7 +276,7 @@ function VerifyContent() {
 
             {/* Bottom HUD Bar */}
             <div className="absolute bottom-4 left-6 right-6 z-10 flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-off-white/30">
-                <span>© SCRAPVERSE 2026 // INTO THE SCRAPE-VERSE</span>
+                <span>© SCRAPEVERSE 2026 // INTO THE SCRAPE-VERSE</span>
                 <span className="hidden md:inline">BRIGHT DATA × WEMAKEDEVS HACKATHON</span>
             </div>
         </main>

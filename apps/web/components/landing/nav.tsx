@@ -16,7 +16,7 @@ export function Nav() {
     return (
         <>
             <header className="fixed top-0 z-[60] flex w-full items-center justify-between p-3 text-off-white mix-blend-difference md:grid md:grid-cols-12 md:gap-x-[.5vw] md:p-3 lg:p-[0.46vw]">
-                {/* Brand Logo: SCRAPVERSE */}
+                {/* Brand Logo: SCRAPEVERSE */}
                 <a
                     href="#"
                     className="col-span-3 flex items-center gap-2 group cursor-pointer"
@@ -24,7 +24,7 @@ export function Nav() {
                 >
                     <span className="font-extrabold tracking-tighter text-xl lg:text-[1.4vw] leading-none uppercase font-mono flex items-center gap-1.5">
                         <span className="inline-block w-2.5 h-2.5 bg-flare rounded-xs animate-pulse" />
-                        SCRAPVERSE<span className="text-flare text-xs font-mono">®</span>
+                        SCRAPEVERSE<span className="text-flare text-xs font-mono">®</span>
                     </span>
                 </a>
 

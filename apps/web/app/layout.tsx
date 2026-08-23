@@ -38,7 +38,7 @@ const kaushan = Kaushan_Script({
 });
 
 export const metadata: Metadata = {
-    title: "ScrapVerse — Into the Scrape-Verse",
+    title: "ScrapeVerse — Into the Scrape-Verse",
     description:
         "A multiverse of web data. Custom scraper built with Bright Data Scraper Studio for the WeMakeDevs hackathon.",
 };

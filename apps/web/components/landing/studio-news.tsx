@@ -72,7 +72,7 @@ export function StudioNews() {
                             <span className="font-light mx-1">/</span> 16/08/2026
                         </span>
                         <h3 className="text-2xl md:text-3xl lg:text-[2.31vw] font-black uppercase leading-tight tracking-tight mb-3 transition-colors group-hover:text-flare">
-                            SCRAPVERSE V2: AUTONOMOUS SELECTOR AST MUTATION ENGINE
+                            SCRAPEVERSE V2: AUTONOMOUS SELECTOR AST MUTATION ENGINE
                         </h3>
                         <p className="text-sm md:text-base leading-relaxed text-void/80 max-w-xl font-medium">
                             We&apos;re shipping real-time Abstract Syntax Tree mutation algorithms

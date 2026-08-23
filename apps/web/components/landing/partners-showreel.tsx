@@ -81,7 +81,7 @@ export function PartnersShowreel() {
                                 <span className="inline-block h-2 w-2 rounded-full bg-flare animate-ping" />{" "}
                                 100% HEALTH
                             </span>
-                            <span className="hidden sm:inline">BRIGHT DATA × SCRAPVERSE</span>
+                            <span className="hidden sm:inline">BRIGHT DATA × SCRAPEVERSE</span>
                         </div>
 
                         {/* Center play icon + text */}

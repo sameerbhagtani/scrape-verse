@@ -30,7 +30,7 @@ export function SpiderSkylineSection() {
                 {/* HUD Stamp Badge */}
                 <div className="absolute bottom-4 left-4 md:bottom-8 md:left-8 bg-void/90 backdrop-blur-xs text-off-white px-3 py-1.5 md:px-4 md:py-2 text-[10px] md:text-xs font-mono font-bold uppercase tracking-widest border border-flare flex items-center gap-2">
                     <span className="inline-block h-2 w-2 rounded-full bg-flare animate-pulse" />
-                    {"// SPIDER-MAN • NEW YORK PROTOCOL // SCRAPVERSE"}
+                    {"// SPIDER-MAN • NEW YORK PROTOCOL // SCRAPEVERSE"}
                 </div>
 
                 {/* Right HUD info */}
