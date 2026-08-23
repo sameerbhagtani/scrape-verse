@@ -217,7 +217,7 @@ function ClosingLogoBlock() {
                         letterSpacing: "-0.05em",
                     }}
                 >
-                    SCRAP<tspan className="fill-flare">VERSE</tspan>
+                    SCRAPE<tspan className="fill-flare">VERSE</tspan>
                 </text>
                 <text
                     x="97%"

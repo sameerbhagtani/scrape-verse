@@ -77,7 +77,7 @@ export function PageTransition() {
             <div className="pt-badge absolute inset-0 flex flex-col items-center justify-center">
                 <div className="relative">
                     <span className="type-giant text-4xl tracking-tighter text-white sm:text-6xl md:text-8xl">
-                        SCRAP<span className="text-miles">VERSE</span>
+                        SCRAPE<span className="text-miles">VERSE</span>
                     </span>
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-2xs uppercase tracking-studio-xl text-cyanide md:text-3xs">
                         [ INITIALIZING MULTIVERSE SCRAPER ]
